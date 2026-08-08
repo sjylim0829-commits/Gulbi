@@ -21,6 +21,8 @@ export const GoalTrackerView: React.FC = () => {
     remainingVariableBudget,
     monthlyGoalProgress,
     gulbiAdvice,
+    todayVariableExpenseSpent,
+    todayAvailableBudget,
     categories,
     transactions,
   } = useFinancial();
@@ -329,6 +331,45 @@ export const GoalTrackerView: React.FC = () => {
             <div className="text-3xl font-extrabold text-amber-600 tracking-tight">
               {gulbiAdvice.dailyTargetBudget.toLocaleString()} <span className="text-base font-normal text-slate-600">원 / 일</span>
             </div>
+          </div>
+
+          {/* Today's Real-Time Available Budget Box */}
+          <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 p-4 border border-amber-200/90 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+              <span className="flex items-center space-x-1.5">
+                <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>오늘 실시간 당일 가용 잔여 예산</span>
+              </span>
+              <span className="text-[11px] text-amber-800 font-bold bg-amber-200/60 px-2 py-0.5 rounded-md">
+                오늘 지출: {todayVariableExpenseSpent.toLocaleString()}원
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between pt-1">
+              <div className="text-2xl font-extrabold tracking-tight">
+                {todayAvailableBudget >= 0 ? (
+                  <span className="text-emerald-600">
+                    +{todayAvailableBudget.toLocaleString()} <span className="text-sm font-normal text-slate-600">원 남음</span>
+                  </span>
+                ) : (
+                  <span className="text-rose-600">
+                    -{Math.abs(todayAvailableBudget).toLocaleString()} <span className="text-sm font-normal text-slate-600">원 초과!</span>
+                  </span>
+                )}
+              </div>
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
+                  todayAvailableBudget >= 0
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    : 'bg-rose-100 text-rose-800 border-rose-200 animate-pulse'
+                }`}
+              >
+                {todayAvailableBudget >= 0 ? '오늘 소비 안전 🟢' : '오늘 예산 초과 🔴'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              일일 권장 지출({gulbiAdvice.dailyTargetBudget.toLocaleString()}원) - 오늘 실제 지출({todayVariableExpenseSpent.toLocaleString()}원) = 오늘 추가 사용 가능 금액
+            </p>
           </div>
 
           <div className="text-xs text-slate-600 space-y-1.5 pt-1">

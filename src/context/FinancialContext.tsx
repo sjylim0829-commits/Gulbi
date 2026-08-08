@@ -64,6 +64,10 @@ interface FinancialContextType {
   initialVariableBudget: number;
   remainingVariableBudget: number;
 
+  // Daily Budget & Today's Available Budget Real-Time Tracking
+  todayVariableExpenseSpent: number;
+  todayAvailableBudget: number;
+
   // Investment Analytics
   totalInvestmentPrincipal: number;
   totalInvestmentCurrentValue: number;
@@ -232,11 +236,9 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     }
   }, [goal, currentUsername]);
 
-  // Effective Combined Assets: Merges manual assets with real-time linked investment items!
+  // Effective Combined Assets
   const assets = useMemo<AssetItem[]>(() => {
     const invItemNames = new Set(investmentItems.map(i => i.name.toLowerCase().trim()));
-
-    // Filter out manual assets that share exact same name as an investment item to avoid duplicate counting
     const filteredManual = manualAssets.filter(ma => !invItemNames.has(ma.name.toLowerCase().trim()));
 
     const linkedAssets: AssetItem[] = investmentItems.map(inv => {
@@ -245,7 +247,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         id: `linked_inv_${inv.id}`,
         name: inv.name,
         category: astCat,
-        amount: inv.currentValue, // Real-time evaluation value!
+        amount: inv.currentValue,
         institution: inv.institution,
         note: inv.memo ? `${inv.memo} (📈 투자 탭 실시간 연동)` : '📈 투자 탭 실시간 연동 (수익률 추적 중)',
         updatedAt: inv.updatedAt || new Date().toISOString().split('T')[0],
@@ -335,6 +337,22 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       .reduce((sum, t) => sum + t.amount, 0);
   }, [currentMonthTransactions, fixedExpenses]);
 
+  // Today's Variable Expense Spent (Excluding Fixed Expenses)
+  const todayVariableExpenseSpent = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
+    return transactions
+      .filter(t => {
+        if (t.date !== todayStr) return false;
+        if (t.type !== 'expense') return false;
+        if (t.memo?.includes('고정지출')) return false;
+        const merchantLower = t.merchant.toLowerCase();
+        if (fixedExpenseNames.some(name => merchantLower.includes(name) || name.includes(merchantLower))) return false;
+        return true;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, fixedExpenses]);
+
   // Initial & Remaining Variable Spending Budget
   const initialVariableBudget = useMemo(() => {
     const effectiveIncome = Math.max(currentMonthIncome, expectedMonthlyIncome);
@@ -363,6 +381,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const remainingToGoal = Math.max(targetVal - currentMonthNetSaving, 0);
 
     const dailyTargetBudget = daysLeft > 0 ? Math.round(Math.max(remainingVariableBudget, 0) / daysLeft) : 0;
+    const todayAvail = dailyTargetBudget - todayVariableExpenseSpent;
 
     let spendingPace: 'safe' | 'caution' | 'danger' = 'safe';
     let healthScore = 80;
@@ -373,7 +392,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     } else if (monthlyGoalProgress >= 90) {
       spendingPace = 'safe';
       healthScore = 95;
-    } else if (remainingVariableBudget <= 0 || dailyTargetBudget < 15000) {
+    } else if (remainingVariableBudget <= 0 || todayAvail < 0) {
       spendingPace = 'danger';
       healthScore = 58;
     } else if (monthlyGoalProgress < (currentDay / totalDays) * 100 - 15) {
@@ -393,13 +412,14 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       adviceList.push('💡 여유 자금은 예적금이나 투자 자산에 배분해 보세요.');
     } else {
       adviceList.push(`🎯 목표 증액분까지 ${remainingToGoal.toLocaleString()}원 남았습니다.`);
-      adviceList.push(`📅 매월 고정지출(${totalFixedExpenseAmount.toLocaleString()}원)을 보존하고 남은 ${daysLeft}일 동안 하루 평균 ${dailyTargetBudget.toLocaleString()}원 이하로 변동지출(식비/쇼핑)을 관리해 보세요.`);
+      adviceList.push(`📅 오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 ${todayVariableExpenseSpent.toLocaleString()}원 지출 ➔ 오늘 남은 가용 금액: ${todayAvail.toLocaleString()}원`);
     }
 
     let statusMessage = `${currentUsername}님 전용 자산 가계부입니다. 굴비가 스마트하게 예산을 관리합니다! 🐟`;
     if (targetVal <= 0) statusMessage = '이번 달 목표 자산 증액분 및 예상 수입을 설정해 보세요! 🎯';
-    else if (spendingPace === 'safe') statusMessage = '고정지출을 차감한 후에도 안전한 소비 페이스를 유지하고 있습니다. 🐟✨';
-    else if (spendingPace === 'caution') statusMessage = '고정지출 차감 후 가용 예산이 다소 부족합니다. 변동 지출을 점검하세요! ⚠️';
+    else if (todayAvail < 0) statusMessage = `⚠️ 오늘 권장 예산을 ${Math.abs(todayAvail).toLocaleString()}원 초과했습니다! 긴축 지출이 시급합니다 🚨`;
+    else if (spendingPace === 'safe') statusMessage = `오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 ${todayVariableExpenseSpent.toLocaleString()}원 지출 ➔ 오늘 남은 가용 금액: ${todayAvail.toLocaleString()}원 🐟✨`;
+    else if (spendingPace === 'caution') statusMessage = '가용 예산이 다소 부족합니다. 오늘 변동 지출을 점검하세요! ⚠️';
     else if (spendingPace === 'danger') statusMessage = '변동지출 예산이 초과되었거나 긴축이 시급합니다! 🚨';
 
     return {
@@ -411,7 +431,12 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       projectedIncrease: currentMonthNetSaving,
       adviceList,
     };
-  }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount]);
+  }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount, todayVariableExpenseSpent]);
+
+  // Today's Available Budget
+  const todayAvailableBudget = useMemo(() => {
+    return gulbiAdvice.dailyTargetBudget - todayVariableExpenseSpent;
+  }, [gulbiAdvice.dailyTargetBudget, todayVariableExpenseSpent]);
 
   // Category Actions
   const addCategory = (cat: Omit<Category, 'id'>) => {
@@ -715,6 +740,8 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         pureVariableExpenseSpent,
         initialVariableBudget,
         remainingVariableBudget,
+        todayVariableExpenseSpent,
+        todayAvailableBudget,
         totalInvestmentPrincipal,
         totalInvestmentCurrentValue,
         totalInvestmentReturn,
