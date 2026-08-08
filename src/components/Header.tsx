@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
             }`}
           >
             <ReceiptText className="h-4 w-4 shrink-0" />
-            <span className="whitespace-nowrap">가계부 장부</span>
+            <span className="whitespace-nowrap">가계부</span>
           </button>
 
           <button
@@ -237,7 +237,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
           }`}
         >
           <ReceiptText className="h-3.5 w-3.5" />
-          <span className="whitespace-nowrap">가계부 장부</span>
+          <span className="whitespace-nowrap">가계부</span>
         </button>
 
         <button

@@ -118,7 +118,7 @@ export const LedgerView: React.FC = () => {
       <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">통합 가계부 장부 (Ledger)</h1>
+            <h1 className="text-xl font-bold text-slate-900">가계부</h1>
             <p className="text-xs text-slate-500">수입, 지출, 투자 내역 통합 관리 및 검색</p>
           </div>
           <button
