@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, Target, Calendar, ReceiptText, Tags, Bot, Sparkles, Download, Upload, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Target, Calendar, ReceiptText, Tags, Bot, Sparkles, Download, Upload, Trash2, LogOut, UserCheck } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
 export type ActiveTab = 'dashboard' | 'goal' | 'fixed-expenses' | 'ledger' | 'categories';
@@ -8,9 +8,10 @@ interface HeaderProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   openChat: () => void;
+  onLogout: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openChat }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openChat, onLogout }) => {
   const { netWorth, gulbiAdvice, clearAllData, exportBackupJSON, importBackupJSON } = useFinancial();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +129,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
             </span>
           </div>
 
+          <div className="hidden xl:flex items-center space-x-1.5 rounded-xl bg-indigo-50 px-2.5 py-1 border border-indigo-100 text-xs font-bold text-indigo-700">
+            <UserCheck className="h-3.5 w-3.5" />
+            <span>sjylim</span>
+          </div>
+
           <button
             onClick={exportBackupJSON}
             title="자산 데이터 백업 파일 다운로드"
@@ -164,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
 
           <button
             onClick={() => {
-              if (confirm('⚠️ 정말로 입력된 모든 데이터를 삭제하시겠습니까? (되돌릴 수 없습니다)')) {
+              if (confirm('⚠️ 정말로 모든 자산 데이터를 초기화하시겠습니까?')) {
                 clearAllData();
               }
             }}
@@ -172,6 +178,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
           >
             <Trash2 className="h-4 w-4" />
+          </button>
+
+          <button
+            onClick={onLogout}
+            title="로그아웃"
+            className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all flex items-center space-x-1 text-xs font-bold"
+          >
+            <LogOut className="h-4 w-4 text-slate-500" />
           </button>
         </div>
       </div>
