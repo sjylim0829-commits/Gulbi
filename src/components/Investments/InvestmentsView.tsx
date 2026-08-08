@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
 import type { InvestmentItem } from '../../types/financial';
 import {
@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   LineChart,
+  ArrowUpDown,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { COMMON_FINANCIAL_INSTITUTIONS } from '../Dashboard/DashboardView';
@@ -34,6 +35,11 @@ export const InvestmentsView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InvestmentItem | null>(null);
 
+  // Sorting State
+  const [invSortBy, setInvSortBy] = useState<
+    'value_desc' | 'value_asc' | 'return_desc' | 'return_asc' | 'principal_desc' | 'name_asc' | 'category'
+  >('value_desc');
+
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [principalAmount, setPrincipalAmount] = useState('');
@@ -45,6 +51,24 @@ export const InvestmentsView: React.FC = () => {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const investmentCategories = categories.filter(c => c.type === 'investment');
+
+  // Sorted Investment Items
+  const sortedInvestmentItems = useMemo(() => {
+    return [...investmentItems].sort((a, b) => {
+      if (invSortBy === 'value_desc') return b.currentValue - a.currentValue;
+      if (invSortBy === 'value_asc') return a.currentValue - b.currentValue;
+      if (invSortBy === 'principal_desc') return b.principalAmount - a.principalAmount;
+      if (invSortBy === 'name_asc') return a.name.localeCompare(b.name, 'ko-KR');
+      if (invSortBy === 'category') return a.categoryName.localeCompare(b.categoryName, 'ko-KR');
+
+      const retA = a.principalAmount > 0 ? (a.currentValue - a.principalAmount) / a.principalAmount : 0;
+      const retB = b.principalAmount > 0 ? (b.currentValue - b.principalAmount) / b.principalAmount : 0;
+
+      if (invSortBy === 'return_desc') return retB - retA;
+      if (invSortBy === 'return_asc') return retA - retB;
+      return 0;
+    });
+  }, [investmentItems, invSortBy]);
 
   const openAddModal = () => {
     setEditingItem(null);
@@ -298,16 +322,37 @@ export const InvestmentsView: React.FC = () => {
             <p className="text-xs text-slate-500">카테고리별 개별 주식, 코인, 펀드 현황 관리</p>
           </div>
 
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-600/20 transition-all shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span>새 투자 종목 추가</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* Sorting Dropdown Control */}
+            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 border border-slate-200 text-xs">
+              <ArrowUpDown className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+              <span className="text-slate-500 font-medium hidden sm:inline">정렬:</span>
+              <select
+                value={invSortBy}
+                onChange={(e) => setInvSortBy(e.target.value as any)}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="value_desc">평가금액 높은순 🔻</option>
+                <option value="value_asc">평가금액 낮은순 🔺</option>
+                <option value="return_desc">수익률 높은순 (%🔻)</option>
+                <option value="return_asc">수익률 낮은순 (%🔺)</option>
+                <option value="principal_desc">투자 원금 높은순</option>
+                <option value="name_asc">종목명 오름차순 (가-나-다)</option>
+                <option value="category">카테고리별 정렬</option>
+              </select>
+            </div>
+
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-600/20 transition-all shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span>새 투자 종목 추가</span>
+            </button>
+          </div>
         </div>
 
-        {investmentItems.length === 0 ? (
+        {sortedInvestmentItems.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
             <TrendingUp className="mx-auto h-10 w-10 text-slate-300 mb-1" />
             <p className="font-semibold text-slate-600 text-sm">등록된 투자 종목이 없습니다.</p>
@@ -329,7 +374,7 @@ export const InvestmentsView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {investmentItems.map((item) => {
+                {sortedInvestmentItems.map((item) => {
                   const retVal = item.currentValue - item.principalAmount;
                   const retPct = item.principalAmount > 0 ? (retVal / item.principalAmount) * 100 : 0;
                   const catObj = categories.find(c => c.id === item.categoryId);

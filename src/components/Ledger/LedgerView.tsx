@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, TrendingUp, Trash2, Edit2, FolderPlus } from 'lucide-react';
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, TrendingUp, Trash2, Edit2, FolderPlus, ArrowUpDown } from 'lucide-react';
 import type { Transaction, TransactionType } from '../../types/financial';
 
 export const LedgerView: React.FC = () => {
@@ -9,6 +9,7 @@ export const LedgerView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | TransactionType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [ledgerSortBy, setLedgerSortBy] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'name_asc' | 'category'>('date_desc');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -106,6 +107,25 @@ export const LedgerView: React.FC = () => {
     });
   }, [transactions, activeTab, selectedCategoryId, searchQuery]);
 
+  // Sorted filtered list
+  const sortedFilteredTransactions = useMemo(() => {
+    return [...filteredTransactions].sort((a, b) => {
+      if (ledgerSortBy === 'date_desc') {
+        const dateComp = (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''));
+        return dateComp !== 0 ? dateComp : 0;
+      }
+      if (ledgerSortBy === 'date_asc') {
+        const dateComp = (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''));
+        return dateComp !== 0 ? dateComp : 0;
+      }
+      if (ledgerSortBy === 'amount_desc') return b.amount - a.amount;
+      if (ledgerSortBy === 'amount_asc') return a.amount - b.amount;
+      if (ledgerSortBy === 'name_asc') return a.merchant.localeCompare(b.merchant, 'ko-KR');
+      if (ledgerSortBy === 'category') return a.categoryName.localeCompare(b.categoryName, 'ko-KR');
+      return 0;
+    });
+  }, [filteredTransactions, ledgerSortBy]);
+
   // Totals for filtered list
   const totalFilteredIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalFilteredExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -197,6 +217,24 @@ export const LedgerView: React.FC = () => {
             </select>
           </div>
 
+          {/* Sorting Dropdown */}
+          <div className="flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 border border-slate-200 text-xs shrink-0">
+            <ArrowUpDown className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+            <span className="text-slate-500 font-medium hidden sm:inline">정렬:</span>
+            <select
+              value={ledgerSortBy}
+              onChange={(e) => setLedgerSortBy(e.target.value as any)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              <option value="date_desc">최신 날짜순 🔻</option>
+              <option value="date_asc">오래된 날짜순 🔺</option>
+              <option value="amount_desc">금액 높은순 🔻</option>
+              <option value="amount_asc">금액 낮은순 🔺</option>
+              <option value="name_asc">가맹점명 오름차순 (가-나-다)</option>
+              <option value="category">카테고리별 정렬</option>
+            </select>
+          </div>
+
         </div>
       </div>
 
@@ -250,7 +288,7 @@ export const LedgerView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredTransactions.map((tx) => {
+                {sortedFilteredTransactions.map((tx) => {
                   const catObj = categories.find(c => c.id === tx.categoryId);
 
                   return (

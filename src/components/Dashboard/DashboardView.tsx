@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
 import type { AssetItem, AssetCategoryType } from '../../types/financial';
 import {
@@ -13,6 +13,7 @@ import {
   PieChart as PieIcon,
   HelpCircle,
   Landmark,
+  ArrowUpDown,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
@@ -73,12 +74,27 @@ export const DashboardView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<AssetItem | null>(null);
 
+  // Sorting State
+  const [assetSortBy, setAssetSortBy] = useState<'amount_desc' | 'amount_asc' | 'name_asc' | 'category' | 'date_desc'>('amount_desc');
+
   // Modal Form State
   const [name, setName] = useState('');
   const [category, setCategory] = useState<AssetCategoryType>('bank');
   const [amount, setAmount] = useState('');
   const [institution, setInstitution] = useState('');
   const [note, setNote] = useState('');
+
+  // Sorted Assets List
+  const sortedAssets = useMemo(() => {
+    return [...assets].sort((a, b) => {
+      if (assetSortBy === 'amount_desc') return b.amount - a.amount;
+      if (assetSortBy === 'amount_asc') return a.amount - b.amount;
+      if (assetSortBy === 'name_asc') return a.name.localeCompare(b.name, 'ko-KR');
+      if (assetSortBy === 'category') return a.category.localeCompare(b.category);
+      if (assetSortBy === 'date_desc') return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+      return 0;
+    });
+  }, [assets, assetSortBy]);
 
   const openAddModal = () => {
     setEditingAsset(null);
@@ -373,21 +389,41 @@ export const DashboardView: React.FC = () => {
 
       {/* Asset Items Table & Management Section */}
       <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-slate-900">상세 자산 & 대출 목록</h2>
             <p className="text-xs text-slate-500">등록된 개별 자산 및 대출 관리</p>
           </div>
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-all"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>추가</span>
-          </button>
+
+          <div className="flex items-center space-x-2">
+            {/* Sorting Dropdown Control */}
+            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 border border-slate-200 text-xs">
+              <ArrowUpDown className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+              <span className="text-slate-500 font-medium hidden sm:inline">정렬:</span>
+              <select
+                value={assetSortBy}
+                onChange={(e) => setAssetSortBy(e.target.value as any)}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="amount_desc">금액 높은순 🔻</option>
+                <option value="amount_asc">금액 낮은순 🔺</option>
+                <option value="name_asc">자산명 오름차순 (가-나-다)</option>
+                <option value="category">카테고리별 정렬</option>
+                <option value="date_desc">최근 수정순</option>
+              </select>
+            </div>
+
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>추가</span>
+            </button>
+          </div>
         </div>
 
-        {assets.length === 0 ? (
+        {sortedAssets.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
             <Wallet className="mx-auto h-10 w-10 text-slate-300 mb-1" />
             <p className="font-semibold text-slate-600 text-sm">등록된 자산이 없습니다.</p>
@@ -406,7 +442,7 @@ export const DashboardView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {assets.map((asset) => {
+                {sortedAssets.map((asset) => {
                   const isLiability = asset.amount < 0;
                   const catConfig = categoryLabels[asset.category];
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
-import { Calendar, Plus, Edit2, Trash2, CheckCircle2, Clock, DollarSign, Wallet, ShieldCheck } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, CheckCircle2, Clock, DollarSign, Wallet, ShieldCheck, ArrowUpDown } from 'lucide-react';
 import type { FixedExpense } from '../../types/financial';
 
 export const FixedExpensesView: React.FC = () => {
@@ -9,6 +9,7 @@ export const FixedExpensesView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FixedExpense | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [fixedSortBy, setFixedSortBy] = useState<'day_asc' | 'day_desc' | 'amount_desc' | 'amount_asc' | 'name_asc'>('day_asc');
 
   // Form state
   const [name, setName] = useState('');
@@ -78,7 +79,14 @@ export const FixedExpensesView: React.FC = () => {
   };
 
   const expenseCategories = categories.filter(c => c.type === 'expense');
-  const sortedFixedExpenses = [...fixedExpenses].sort((a, b) => a.dayOfMonth - b.dayOfMonth);
+  const sortedFixedExpenses = [...fixedExpenses].sort((a, b) => {
+    if (fixedSortBy === 'day_asc') return a.dayOfMonth - b.dayOfMonth;
+    if (fixedSortBy === 'day_desc') return b.dayOfMonth - a.dayOfMonth;
+    if (fixedSortBy === 'amount_desc') return b.amount - a.amount;
+    if (fixedSortBy === 'amount_asc') return a.amount - b.amount;
+    if (fixedSortBy === 'name_asc') return a.name.localeCompare(b.name, 'ko-KR');
+    return 0;
+  });
 
   return (
     <div className="space-y-6 pb-12">
@@ -104,13 +112,32 @@ export const FixedExpensesView: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center justify-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span>고정지출 추가</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* Sorting Dropdown */}
+            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 border border-slate-200 text-xs">
+              <ArrowUpDown className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+              <span className="text-slate-500 font-medium hidden sm:inline">정렬:</span>
+              <select
+                value={fixedSortBy}
+                onChange={(e) => setFixedSortBy(e.target.value as any)}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="day_asc">결제일 빠른순 🔺</option>
+                <option value="day_desc">결제일 늦은순 🔻</option>
+                <option value="amount_desc">금액 높은순 🔻</option>
+                <option value="amount_asc">금액 낮은순 🔺</option>
+                <option value="name_asc">항목명 오름차순 (가-나-다)</option>
+              </select>
+            </div>
+
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center justify-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span>고정지출 추가</span>
+            </button>
+          </div>
         </div>
       </div>
 
