@@ -43,6 +43,19 @@ export interface ExpectedIncomeItem {
   memo?: string;
 }
 
+export interface InvestmentItem {
+  id: string;
+  name: string; // e.g., '삼성전자', 'S&P 500 ETF', '비트코인'
+  categoryId: string;
+  categoryName: string;
+  principalAmount: number; // 투자 원금 (매수금액)
+  currentValue: number; // 현재 평가금액
+  institution?: string; // 증권사/거래소 e.g. '키움증권', '업비트'
+  quantity?: number; // 보유 수량
+  memo?: string;
+  updatedAt: string;
+}
+
 export interface Transaction {
   id: string;
   date: string; // YYYY-MM-DD

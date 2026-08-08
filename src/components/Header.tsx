@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
-import { LayoutDashboard, Target, Calendar, ReceiptText, Tags, Bot, Sparkles, Download, Upload, Trash2, LogOut, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Target, Calendar, ReceiptText, Tags, Bot, Sparkles, Download, Upload, Trash2, LogOut, UserCheck, TrendingUp } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
-export type ActiveTab = 'dashboard' | 'goal' | 'fixed-expenses' | 'ledger' | 'categories';
+export type ActiveTab = 'dashboard' | 'goal' | 'fixed-expenses' | 'investments' | 'ledger' | 'categories';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -59,10 +59,10 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
         </div>
 
         {/* Navigation Tabs - No Wrap */}
-        <nav className="hidden md:flex items-center space-x-1.5 rounded-2xl bg-slate-100/80 p-1.5 border border-slate-200/80">
+        <nav className="hidden md:flex items-center space-x-1 rounded-2xl bg-slate-100/80 p-1.5 border border-slate-200/80">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
               activeTab === 'dashboard'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -73,8 +73,20 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
           </button>
 
           <button
+            onClick={() => setActiveTab('investments')}
+            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+              activeTab === 'investments'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <TrendingUp className="h-4 w-4 shrink-0 text-emerald-500" />
+            <span className="whitespace-nowrap">투자</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('goal')}
-            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
               activeTab === 'goal'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -86,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
 
           <button
             onClick={() => setActiveTab('fixed-expenses')}
-            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
               activeTab === 'fixed-expenses'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -98,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
 
           <button
             onClick={() => setActiveTab('ledger')}
-            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
               activeTab === 'ledger'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -110,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
 
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
               activeTab === 'categories'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -208,6 +220,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
         >
           <LayoutDashboard className="h-3.5 w-3.5" />
           <span className="whitespace-nowrap">자산</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('investments')}
+          className={`flex items-center space-x-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold ${
+            activeTab === 'investments' ? 'bg-indigo-600 text-white' : 'text-slate-600 bg-slate-200/60'
+          }`}
+        >
+          <TrendingUp className="h-3.5 w-3.5" />
+          <span className="whitespace-nowrap">투자</span>
         </button>
 
         <button

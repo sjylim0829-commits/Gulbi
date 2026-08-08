@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FinancialProvider } from './context/FinancialContext';
 import { Header, type ActiveTab } from './components/Header';
 import { DashboardView } from './components/Dashboard/DashboardView';
+import { InvestmentsView } from './components/Investments/InvestmentsView';
 import { GoalTrackerView } from './components/GoalTracker/GoalTrackerView';
 import { FixedExpensesView } from './components/FixedExpenses/FixedExpensesView';
 import { LedgerView } from './components/Ledger/LedgerView';
@@ -45,6 +46,7 @@ export const AppContent: React.FC<{ currentUsername: string; onLogout: () => voi
       {/* Main Content Body */}
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
         {activeTab === 'dashboard' && <DashboardView />}
+        {activeTab === 'investments' && <InvestmentsView />}
         {activeTab === 'goal' && <GoalTrackerView />}
         {activeTab === 'fixed-expenses' && <FixedExpensesView />}
         {activeTab === 'ledger' && <LedgerView />}
@@ -56,7 +58,7 @@ export const AppContent: React.FC<{ currentUsername: string; onLogout: () => voi
         <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-slate-700">Gulbi (굴비) AI</span>
-            <span>· 계정별 데이터 격리 가계부 & 자산 관리 에이전트</span>
+            <span>· 계정별 데이터 격리 가계부 & 자산/투자 관리 에이전트</span>
           </div>
           <p className="text-slate-400">© 2026 Gulbi Financial Agent. All rights reserved.</p>
         </div>

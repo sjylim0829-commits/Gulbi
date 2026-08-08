@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { AssetItem, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, MonthlyGoal, Transaction } from '../types/financial';
+import type { AssetItem, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, Transaction } from '../types/financial';
 import { INITIAL_ASSETS, INITIAL_CATEGORIES, INITIAL_GOAL, INITIAL_TRANSACTIONS } from '../utils/mockData';
 
 interface FinancialContextType {
@@ -9,6 +9,7 @@ interface FinancialContextType {
   transactions: Transaction[];
   fixedExpenses: FixedExpense[];
   expectedIncomeItems: ExpectedIncomeItem[];
+  investmentItems: InvestmentItem[];
   goal: MonthlyGoal;
   
   // Category Actions
@@ -33,6 +34,12 @@ interface FinancialContextType {
   deleteExpectedIncomeItem: (id: string) => void;
   logExpectedIncomeToLedger: (id: string) => void;
 
+  // Investment Actions
+  addInvestmentItem: (item: Omit<InvestmentItem, 'id' | 'updatedAt'>) => void;
+  updateInvestmentItem: (id: string, item: Partial<InvestmentItem>) => void;
+  deleteInvestmentItem: (id: string) => void;
+  logInvestmentToLedger: (id: string) => void;
+
   // Transaction Actions
   addTransaction: (tx: Omit<Transaction, 'id'>) => void;
   addTransactionsBatch: (txs: Omit<Transaction, 'id'>[]) => void;
@@ -55,6 +62,13 @@ interface FinancialContextType {
   pureVariableExpenseSpent: number;
   initialVariableBudget: number;
   remainingVariableBudget: number;
+
+  // Investment Analytics
+  totalInvestmentPrincipal: number;
+  totalInvestmentCurrentValue: number;
+  totalInvestmentReturn: number;
+  totalInvestmentReturnPct: number;
+
   monthlyGoalProgress: number; // % progress
   gulbiAdvice: GulbiAdvice;
 
@@ -81,7 +95,6 @@ function loadUserStorageItem<T>(username: string, subKey: string, fallback: T): 
       return JSON.parse(existing) as T;
     }
 
-    // Migration for main account 'sjylim'
     if (username.toLowerCase().trim() === 'sjylim') {
       const primaryLegacy = localStorage.getItem(`${LEGACY_STORAGE_KEY}_${subKey}`);
       if (primaryLegacy) {
@@ -132,6 +145,10 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []);
   });
 
+  const [investmentItems, setInvestmentItems] = useState<InvestmentItem[]>(() => {
+    return loadUserStorageItem<InvestmentItem[]>(currentUsername, 'investment_items', []);
+  });
+
   const [goal, setGoal] = useState<MonthlyGoal>(() => {
     const fallback = currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
     return loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', fallback);
@@ -144,10 +161,11 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setTransactions(loadUserStorageItem<Transaction[]>(currentUsername, 'transactions', currentUsername === 'sjylim' ? INITIAL_TRANSACTIONS : []));
     setFixedExpenses(loadUserStorageItem<FixedExpense[]>(currentUsername, 'fixed_expenses', []));
     setExpectedIncomeItems(loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []));
+    setInvestmentItems(loadUserStorageItem<InvestmentItem[]>(currentUsername, 'investment_items', []));
     setGoal(loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' }));
   }, [currentUsername]);
 
-  // Sync state to LocalStorage reliably for currentUsername
+  // Sync state to LocalStorage reliably
   useEffect(() => {
     try {
       localStorage.setItem(getUserStorageKey(currentUsername, 'categories'), JSON.stringify(categories));
@@ -190,6 +208,14 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
 
   useEffect(() => {
     try {
+      localStorage.setItem(getUserStorageKey(currentUsername, 'investment_items'), JSON.stringify(investmentItems));
+    } catch (e) {
+      console.error('Error saving investment items:', e);
+    }
+  }, [investmentItems, currentUsername]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(getUserStorageKey(currentUsername, 'goal'), JSON.stringify(goal));
     } catch (e) {
       console.error('Error saving goal:', e);
@@ -219,6 +245,24 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const itemizedSum = expectedIncomeItems.reduce((sum, item) => sum + item.amount, 0);
     return itemizedSum > 0 ? itemizedSum : (goal.expectedIncome || 0);
   }, [expectedIncomeItems, goal.expectedIncome]);
+
+  // Investment Totals
+  const totalInvestmentPrincipal = useMemo(() => {
+    return investmentItems.reduce((sum, item) => sum + item.principalAmount, 0);
+  }, [investmentItems]);
+
+  const totalInvestmentCurrentValue = useMemo(() => {
+    return investmentItems.reduce((sum, item) => sum + item.currentValue, 0);
+  }, [investmentItems]);
+
+  const totalInvestmentReturn = useMemo(() => {
+    return totalInvestmentCurrentValue - totalInvestmentPrincipal;
+  }, [totalInvestmentCurrentValue, totalInvestmentPrincipal]);
+
+  const totalInvestmentReturnPct = useMemo(() => {
+    if (totalInvestmentPrincipal <= 0) return 0;
+    return (totalInvestmentReturn / totalInvestmentPrincipal) * 100;
+  }, [totalInvestmentReturn, totalInvestmentPrincipal]);
 
   // Current Month Calculations (August 2026 default)
   const currentMonthTransactions = useMemo(() => {
@@ -334,7 +378,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     };
   }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount]);
 
-  // Actions
+  // Category Actions
   const addCategory = (cat: Omit<Category, 'id'>) => {
     const newCat: Category = { ...cat, id: `cat_${Date.now()}` };
     setCategories(prev => [...prev, newCat]);
@@ -348,6 +392,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setCategories(prev => prev.filter(c => c.id !== id));
   };
 
+  // Asset Actions
   const addAsset = (asset: Omit<AssetItem, 'id' | 'updatedAt'>) => {
     const newAsset: AssetItem = {
       ...asset,
@@ -446,6 +491,47 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setTransactions(prev => [newTx, ...prev]);
   };
 
+  // Investment Actions
+  const addInvestmentItem = (item: Omit<InvestmentItem, 'id' | 'updatedAt'>) => {
+    const newItem: InvestmentItem = {
+      ...item,
+      id: `inv_${Date.now()}`,
+      updatedAt: new Date().toISOString().split('T')[0],
+    };
+    setInvestmentItems(prev => [...prev, newItem]);
+  };
+
+  const updateInvestmentItem = (id: string, updated: Partial<InvestmentItem>) => {
+    setInvestmentItems(prev => prev.map(inv => (inv.id === id ? { ...inv, ...updated, updatedAt: new Date().toISOString().split('T')[0] } : inv)));
+  };
+
+  const deleteInvestmentItem = (id: string) => {
+    setInvestmentItems(prev => prev.filter(inv => inv.id !== id));
+  };
+
+  const logInvestmentToLedger = (id: string) => {
+    const item = investmentItems.find(i => i.id === id);
+    if (!item) return;
+
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+
+    const newTx: Transaction = {
+      id: `tx_inv_${Date.now()}`,
+      date: dateStr,
+      time: '09:00',
+      type: 'investment',
+      categoryId: item.categoryId,
+      categoryName: item.categoryName,
+      amount: item.principalAmount,
+      merchant: item.name,
+      paymentMethod: item.institution || '증권사/거래소',
+      memo: `투자 자금 입금 기록 (${item.name})`,
+    };
+
+    setTransactions(prev => [newTx, ...prev]);
+  };
+
   const addTransaction = (tx: Omit<Transaction, 'id'>) => {
     const newTx: Transaction = { ...tx, id: `tx_${Date.now()}` };
     setTransactions(prev => [newTx, ...prev]);
@@ -474,6 +560,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setTransactions([]);
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
+    setInvestmentItems([]);
     setGoal(INITIAL_GOAL);
   };
 
@@ -482,6 +569,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setTransactions([]);
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
+    setInvestmentItems([]);
     setGoal({ yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
   };
 
@@ -496,6 +584,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       transactions,
       fixedExpenses,
       expectedIncomeItems,
+      investmentItems,
       goal,
     };
     const jsonStr = JSON.stringify(backupData, null, 2);
@@ -517,6 +606,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       if (Array.isArray(data.transactions)) setTransactions(data.transactions);
       if (Array.isArray(data.fixedExpenses)) setFixedExpenses(data.fixedExpenses);
       if (Array.isArray(data.expectedIncomeItems)) setExpectedIncomeItems(data.expectedIncomeItems);
+      if (Array.isArray(data.investmentItems)) setInvestmentItems(data.investmentItems);
       if (data.goal) setGoal(data.goal);
       return true;
     } catch (e) {
@@ -534,6 +624,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         transactions,
         fixedExpenses,
         expectedIncomeItems,
+        investmentItems,
         goal,
         addCategory,
         updateCategory,
@@ -549,6 +640,10 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         updateExpectedIncomeItem,
         deleteExpectedIncomeItem,
         logExpectedIncomeToLedger,
+        addInvestmentItem,
+        updateInvestmentItem,
+        deleteInvestmentItem,
+        logInvestmentToLedger,
         addTransaction,
         addTransactionsBatch,
         updateTransaction,
@@ -566,6 +661,10 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         pureVariableExpenseSpent,
         initialVariableBudget,
         remainingVariableBudget,
+        totalInvestmentPrincipal,
+        totalInvestmentCurrentValue,
+        totalInvestmentReturn,
+        totalInvestmentReturnPct,
         monthlyGoalProgress,
         gulbiAdvice,
         resetToMockData,
