@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
 import { Search, Plus, ArrowUpCircle, ArrowDownCircle, TrendingUp, Trash2, Edit2, FolderPlus, ArrowUpDown } from 'lucide-react';
 import type { Transaction, TransactionType } from '../../types/financial';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 export const LedgerView: React.FC = () => {
   const { transactions, categories, addTransaction, updateTransaction, deleteTransaction } = useFinancial();
@@ -16,7 +17,7 @@ export const LedgerView: React.FC = () => {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   // Form State
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [time, setTime] = useState('12:00');
   const [type, setType] = useState<TransactionType>('expense');
   const [categoryId, setCategoryId] = useState('');
@@ -32,7 +33,7 @@ export const LedgerView: React.FC = () => {
 
   const openAddModal = () => {
     setEditingTx(null);
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getLocalDateString());
     setTime('12:00');
     setType('expense');
     const firstCat = categories.find(c => c.type === 'expense');

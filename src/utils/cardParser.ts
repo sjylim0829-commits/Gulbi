@@ -1,4 +1,5 @@
 import type { Category, ParsedCardTransaction } from '../types/financial';
+import { getLocalDateString } from './dateUtils';
 
 // Default Keyword to Category Mapper
 const KEYWORD_CATEGORY_MAP: Record<string, string> = {
@@ -228,7 +229,7 @@ export function parseCSVStatement(
     if (cols.length < 3) continue;
 
     // Try finding date, merchant, amount in columns
-    let dateStr = `${currentYear}-08-08`;
+    let dateStr = getLocalDateString();
     let merchant = '가맹점';
     let amount = 0;
     let paymentMethod = '카드명세서';

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type { AssetItem, AssetCategoryType, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, Transaction } from '../types/financial';
 import { INITIAL_ASSETS, INITIAL_CATEGORIES, INITIAL_GOAL, INITIAL_TRANSACTIONS } from '../utils/mockData';
+import { getLocalDateString, getLocalYearMonthString, getDaysInMonth } from '../utils/dateUtils';
 
 interface FinancialContextType {
   currentUsername: string;
@@ -12,6 +13,7 @@ interface FinancialContextType {
   expectedIncomeItems: ExpectedIncomeItem[];
   investmentItems: InvestmentItem[];
   goal: MonthlyGoal;
+  todayDateStr: string;
   
   // Category Actions
   addCategory: (cat: Omit<Category, 'id'>) => void;
@@ -139,6 +141,26 @@ const FinancialContext = createContext<FinancialContextType | undefined>(undefin
 export const FinancialProvider: React.FC<{ username: string; children: React.ReactNode }> = ({ username, children }) => {
   const currentUsername = (username || 'sjylim').toLowerCase().trim();
 
+  // Automatic Real-Time Local Date State (updates at midnight or on tab focus)
+  const [todayDateStr, setTodayDateStr] = useState<string>(() => getLocalDateString());
+
+  useEffect(() => {
+    const checkDate = () => {
+      const currentLocal = getLocalDateString();
+      setTodayDateStr(prev => (prev !== currentLocal ? currentLocal : prev));
+    };
+
+    const interval = setInterval(checkDate, 15000); // Check every 15 sec
+    window.addEventListener('focus', checkDate);
+    window.addEventListener('visibilitychange', checkDate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkDate);
+      window.removeEventListener('visibilitychange', checkDate);
+    };
+  }, []);
+
   const [categories, setCategories] = useState<Category[]>(() => {
     return loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES);
   });
@@ -166,19 +188,21 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   });
 
   const [goal, setGoal] = useState<MonthlyGoal>(() => {
-    const fallback = currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
+    const defaultYM = getLocalYearMonthString();
+    const fallback = currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
     return loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', fallback);
   });
 
   // Re-load data whenever currentUsername changes
   useEffect(() => {
+    const defaultYM = getLocalYearMonthString();
     setCategories(loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES));
     setManualAssets(loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', currentUsername === 'sjylim' ? INITIAL_ASSETS : []));
     setTransactions(loadUserStorageItem<Transaction[]>(currentUsername, 'transactions', currentUsername === 'sjylim' ? INITIAL_TRANSACTIONS : []));
     setFixedExpenses(loadUserStorageItem<FixedExpense[]>(currentUsername, 'fixed_expenses', []));
     setExpectedIncomeItems(loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []));
     setInvestmentItems(loadUserStorageItem<InvestmentItem[]>(currentUsername, 'investment_items', []));
-    setGoal(loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' }));
+    setGoal(loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' }));
   }, [currentUsername]);
 
   // Sync state to LocalStorage
@@ -252,7 +276,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         amount: inv.currentValue,
         institution: inv.institution,
         note: inv.memo ? `${inv.memo} (📈 투자 탭 실시간 연동)` : '📈 투자 탭 실시간 연동 (수익률 추적 중)',
-        updatedAt: inv.updatedAt || new Date().toISOString().split('T')[0],
+        updatedAt: inv.updatedAt || getLocalDateString(),
         isLinkedFromInvestment: true,
         investmentId: inv.id,
       };
@@ -305,7 +329,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
 
   // Current Month Transactions
   const currentMonthTransactions = useMemo(() => {
-    const currentYM = goal.yearMonth || '2026-08';
+    const currentYM = goal.yearMonth || getLocalYearMonthString();
     return transactions.filter(t => t.date.startsWith(currentYM));
   }, [transactions, goal.yearMonth]);
 
@@ -332,13 +356,12 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return Math.max(effectiveIncome - targetVal - totalFixedExpenseAmount, 0);
   }, [currentMonthIncome, expectedMonthlyIncome, goal.targetIncreaseAmount, totalFixedExpenseAmount]);
 
-  // 1. Past Variable Expense Spent (Expenses UP TO YESTERDAY: date < todayStr)
+  // 1. Past Variable Expense Spent (Expenses UP TO YESTERDAY: date < todayDateStr)
   const pastVariableExpenseSpent = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
     const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
     return currentMonthTransactions
       .filter(t => {
-        if (t.date >= todayStr) return false; // Exclude today and future
+        if (t.date >= todayDateStr) return false; // Exclude today and future dates
         if (t.type !== 'expense') return false;
         if (t.memo?.includes('고정지출')) return false;
         const merchantLower = t.merchant.toLowerCase();
@@ -346,15 +369,14 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         return true;
       })
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions, fixedExpenses]);
+  }, [currentMonthTransactions, fixedExpenses, todayDateStr]);
 
-  // 2. Today's Variable Expense Spent (Expenses LOGGED TODAY: date === todayStr)
+  // 2. Today's Variable Expense Spent (Expenses LOGGED TODAY: date === todayDateStr)
   const todayVariableExpenseSpent = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
     const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
     return transactions
       .filter(t => {
-        if (t.date !== todayStr) return false;
+        if (t.date !== todayDateStr) return false;
         if (t.type !== 'expense') return false;
         if (t.memo?.includes('고정지출')) return false;
         const merchantLower = t.merchant.toLowerCase();
@@ -362,7 +384,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         return true;
       })
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions, fixedExpenses]);
+  }, [transactions, fixedExpenses, todayDateStr]);
 
   // 3. Total Pure Variable Expense Spent This Month
   const pureVariableExpenseSpent = useMemo(() => {
@@ -387,9 +409,15 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
 
   // Gulbi Advice Engine
   const gulbiAdvice = useMemo<GulbiAdvice>(() => {
+    const yearMonth = goal.yearMonth || getLocalYearMonthString();
+    const [year, month] = yearMonth.split('-').map(Number);
+    const totalDays = getDaysInMonth(year, month);
+    
     const now = new Date();
-    const totalDays = 31;
-    const currentDay = Math.min(now.getDate(), totalDays);
+    const currentDay = year === now.getFullYear() && month === (now.getMonth() + 1)
+      ? Math.min(now.getDate(), totalDays)
+      : 1;
+
     const daysLeft = Math.max(totalDays - currentDay + 1, 1);
 
     const targetVal = goal.targetIncreaseAmount || 0;
@@ -447,7 +475,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       projectedIncrease: currentMonthNetSaving,
       adviceList,
     };
-  }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudgetBeforeToday, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount, todayVariableExpenseSpent]);
+  }, [currentUsername, goal.yearMonth, goal.targetIncreaseAmount, remainingVariableBudgetBeforeToday, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount, todayVariableExpenseSpent]);
 
   // Today's Available Budget
   const todayAvailableBudget = useMemo(() => {
@@ -473,7 +501,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const newAsset: AssetItem = {
       ...asset,
       id: `ast_${Date.now()}`,
-      updatedAt: new Date().toISOString().split('T')[0],
+      updatedAt: getLocalDateString(),
     };
     setManualAssets(prev => [...prev, newAsset]);
   };
@@ -492,7 +520,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       }
       return;
     }
-    setManualAssets(prev => prev.map(a => (a.id === id ? { ...a, ...updated, updatedAt: new Date().toISOString().split('T')[0] } : a)));
+    setManualAssets(prev => prev.map(a => (a.id === id ? { ...a, ...updated, updatedAt: getLocalDateString() } : a)));
   };
 
   const deleteAsset = (id: string) => {
@@ -525,8 +553,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const fe = fixedExpenses.find(item => item.id === id);
     if (!fe) return;
 
-    const today = new Date();
-    const ym = goal.yearMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const ym = goal.yearMonth || getLocalYearMonthString();
     const dateStr = `${ym}-${String(fe.dayOfMonth).padStart(2, '0')}`;
 
     const newTx: Transaction = {
@@ -566,8 +593,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const item = expectedIncomeItems.find(i => i.id === id);
     if (!item) return;
 
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    const dateStr = getLocalDateString();
 
     const newTx: Transaction = {
       id: `tx_ei_${Date.now()}`,
@@ -590,13 +616,13 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const newItem: InvestmentItem = {
       ...item,
       id: `inv_${Date.now()}`,
-      updatedAt: new Date().toISOString().split('T')[0],
+      updatedAt: getLocalDateString(),
     };
     setInvestmentItems(prev => [...prev, newItem]);
   };
 
   const updateInvestmentItem = (id: string, updated: Partial<InvestmentItem>) => {
-    setInvestmentItems(prev => prev.map(inv => (inv.id === id ? { ...inv, ...updated, updatedAt: new Date().toISOString().split('T')[0] } : inv)));
+    setInvestmentItems(prev => prev.map(inv => (inv.id === id ? { ...inv, ...updated, updatedAt: getLocalDateString() } : inv)));
   };
 
   const deleteInvestmentItem = (id: string) => {
@@ -607,8 +633,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const item = investmentItems.find(i => i.id === id);
     if (!item) return;
 
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    const dateStr = getLocalDateString();
 
     const newTx: Transaction = {
       id: `tx_inv_${Date.now()}`,
@@ -664,7 +689,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
     setInvestmentItems([]);
-    setGoal({ yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
+    setGoal({ yearMonth: getLocalYearMonthString(), targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
   };
 
   // Export Complete Backup JSON
@@ -686,7 +711,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gulbi_${currentUsername}_asset_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `gulbi_${currentUsername}_asset_backup_${getLocalDateString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -721,6 +746,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         expectedIncomeItems,
         investmentItems,
         goal,
+        todayDateStr,
         addCategory,
         updateCategory,
         deleteCategory,
