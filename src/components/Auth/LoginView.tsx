@@ -133,6 +133,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </form>
         </div>
 
+        {/* Test Account Quick Access */}
+        <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-200 space-y-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm">🧪</span>
+            <span className="text-xs font-bold text-emerald-800">테스트 계정 정보</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-xl bg-white/80 px-3 py-2 border border-emerald-100">
+              <span className="text-slate-500 font-medium">아이디: </span>
+              <span className="font-bold text-slate-900">test</span>
+            </div>
+            <div className="rounded-xl bg-white/80 px-3 py-2 border border-emerald-100">
+              <span className="text-slate-500 font-medium">비밀번호: </span>
+              <span className="font-bold text-slate-900">test1234!</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setUsername('test');
+              setPassword('test1234!');
+              setErrorMsg('');
+            }}
+            className="w-full flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition-all"
+          >
+            <span>🚀 테스트 계정으로 빠르게 로그인</span>
+          </button>
+        </div>
+
         {/* Security Footer Notice */}
         <div className="text-center text-xs text-slate-400 space-y-1">
           <p className="flex items-center justify-center space-x-1">
