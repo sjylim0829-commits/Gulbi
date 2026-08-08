@@ -60,13 +60,15 @@ interface FinancialContextType {
   currentMonthInvestment: number;
   currentMonthNetSaving: number;
   totalFixedExpenseAmount: number;
-  pureVariableExpenseSpent: number;
   initialVariableBudget: number;
-  remainingVariableBudget: number;
 
-  // Daily Budget & Today's Available Budget Real-Time Tracking
-  todayVariableExpenseSpent: number;
-  todayAvailableBudget: number;
+  // Daily Budget & Past/Today Real-Time Tracking
+  pastVariableExpenseSpent: number; // 어제까지 누적 변동지출
+  todayVariableExpenseSpent: number; // 오늘 당일 변동지출
+  pureVariableExpenseSpent: number; // 이번 달 총 누적 변동지출
+  remainingVariableBudgetBeforeToday: number; // 오늘 아침 시작 시점 남은 가용 예산
+  remainingVariableBudget: number; // 이번 달 총 남은 가용 예산
+  todayAvailableBudget: number; // 오늘 남아있는 당일 가용 예산
 
   // Investment Analytics
   totalInvestmentPrincipal: number;
@@ -301,7 +303,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return (totalInvestmentReturn / totalInvestmentPrincipal) * 100;
   }, [totalInvestmentReturn, totalInvestmentPrincipal]);
 
-  // Current Month Calculations (August 2026 default)
+  // Current Month Transactions
   const currentMonthTransactions = useMemo(() => {
     const currentYM = goal.yearMonth || '2026-08';
     return transactions.filter(t => t.date.startsWith(currentYM));
@@ -323,11 +325,20 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return currentMonthIncome - currentMonthExpense;
   }, [currentMonthIncome, currentMonthExpense]);
 
-  // Pure Variable Expense Spent (Excluding Fixed Expenses logged)
-  const pureVariableExpenseSpent = useMemo(() => {
+  // Initial Monthly Variable Budget
+  const initialVariableBudget = useMemo(() => {
+    const effectiveIncome = Math.max(currentMonthIncome, expectedMonthlyIncome);
+    const targetVal = goal.targetIncreaseAmount || 0;
+    return Math.max(effectiveIncome - targetVal - totalFixedExpenseAmount, 0);
+  }, [currentMonthIncome, expectedMonthlyIncome, goal.targetIncreaseAmount, totalFixedExpenseAmount]);
+
+  // 1. Past Variable Expense Spent (Expenses UP TO YESTERDAY: date < todayStr)
+  const pastVariableExpenseSpent = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
     const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
     return currentMonthTransactions
       .filter(t => {
+        if (t.date >= todayStr) return false; // Exclude today and future
         if (t.type !== 'expense') return false;
         if (t.memo?.includes('고정지출')) return false;
         const merchantLower = t.merchant.toLowerCase();
@@ -337,7 +348,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       .reduce((sum, t) => sum + t.amount, 0);
   }, [currentMonthTransactions, fixedExpenses]);
 
-  // Today's Variable Expense Spent (Excluding Fixed Expenses)
+  // 2. Today's Variable Expense Spent (Expenses LOGGED TODAY: date === todayStr)
   const todayVariableExpenseSpent = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
@@ -353,13 +364,17 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       .reduce((sum, t) => sum + t.amount, 0);
   }, [transactions, fixedExpenses]);
 
-  // Initial & Remaining Variable Spending Budget
-  const initialVariableBudget = useMemo(() => {
-    const effectiveIncome = Math.max(currentMonthIncome, expectedMonthlyIncome);
-    const targetVal = goal.targetIncreaseAmount || 0;
-    return Math.max(effectiveIncome - targetVal - totalFixedExpenseAmount, 0);
-  }, [currentMonthIncome, expectedMonthlyIncome, goal.targetIncreaseAmount, totalFixedExpenseAmount]);
+  // 3. Total Pure Variable Expense Spent This Month
+  const pureVariableExpenseSpent = useMemo(() => {
+    return pastVariableExpenseSpent + todayVariableExpenseSpent;
+  }, [pastVariableExpenseSpent, todayVariableExpenseSpent]);
 
+  // 4. Remaining Variable Budget BEFORE TODAY (Start of today)
+  const remainingVariableBudgetBeforeToday = useMemo(() => {
+    return initialVariableBudget - pastVariableExpenseSpent;
+  }, [initialVariableBudget, pastVariableExpenseSpent]);
+
+  // 5. Total Remaining Variable Budget (After today's spent)
   const remainingVariableBudget = useMemo(() => {
     return initialVariableBudget - pureVariableExpenseSpent;
   }, [initialVariableBudget, pureVariableExpenseSpent]);
@@ -380,7 +395,8 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     const targetVal = goal.targetIncreaseAmount || 0;
     const remainingToGoal = Math.max(targetVal - currentMonthNetSaving, 0);
 
-    const dailyTargetBudget = daysLeft > 0 ? Math.round(Math.max(remainingVariableBudget, 0) / daysLeft) : 0;
+    // Baseline daily target budget calculated from PRE-TODAY remaining budget!
+    const dailyTargetBudget = daysLeft > 0 ? Math.round(Math.max(remainingVariableBudgetBeforeToday, 0) / daysLeft) : 0;
     const todayAvail = dailyTargetBudget - todayVariableExpenseSpent;
 
     let spendingPace: 'safe' | 'caution' | 'danger' = 'safe';
@@ -412,13 +428,13 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       adviceList.push('💡 여유 자금은 예적금이나 투자 자산에 배분해 보세요.');
     } else {
       adviceList.push(`🎯 목표 증액분까지 ${remainingToGoal.toLocaleString()}원 남았습니다.`);
-      adviceList.push(`📅 오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 ${todayVariableExpenseSpent.toLocaleString()}원 지출 ➔ 오늘 남은 가용 금액: ${todayAvail.toLocaleString()}원`);
+      adviceList.push(`📅 오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 오늘 ${todayVariableExpenseSpent.toLocaleString()}원 지출 ➔ 오늘 남은 가용 금액: ${todayAvail.toLocaleString()}원`);
     }
 
     let statusMessage = `${currentUsername}님 전용 자산 가계부입니다. 굴비가 스마트하게 예산을 관리합니다! 🐟`;
     if (targetVal <= 0) statusMessage = '이번 달 목표 자산 증액분 및 예상 수입을 설정해 보세요! 🎯';
-    else if (todayAvail < 0) statusMessage = `⚠️ 오늘 권장 예산을 ${Math.abs(todayAvail).toLocaleString()}원 초과했습니다! 긴축 지출이 시급합니다 🚨`;
-    else if (spendingPace === 'safe') statusMessage = `오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 ${todayVariableExpenseSpent.toLocaleString()}원 지출 ➔ 오늘 남은 가용 금액: ${todayAvail.toLocaleString()}원 🐟✨`;
+    else if (todayAvail < 0) statusMessage = `⚠️ 오늘 권장 예산(${dailyTargetBudget.toLocaleString()}원)을 ${Math.abs(todayAvail).toLocaleString()}원 초과했습니다! 긴축 지출이 시급합니다 🚨`;
+    else if (spendingPace === 'safe') statusMessage = `오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 ${todayVariableExpenseSpent.toLocaleString()}원 사용 ➔ 오늘 추가 가용 금액: ${todayAvail.toLocaleString()}원 🐟✨`;
     else if (spendingPace === 'caution') statusMessage = '가용 예산이 다소 부족합니다. 오늘 변동 지출을 점검하세요! ⚠️';
     else if (spendingPace === 'danger') statusMessage = '변동지출 예산이 초과되었거나 긴축이 시급합니다! 🚨';
 
@@ -431,7 +447,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       projectedIncrease: currentMonthNetSaving,
       adviceList,
     };
-  }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount, todayVariableExpenseSpent]);
+  }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudgetBeforeToday, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount, todayVariableExpenseSpent]);
 
   // Today's Available Budget
   const todayAvailableBudget = useMemo(() => {
@@ -737,10 +753,12 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         currentMonthInvestment,
         currentMonthNetSaving,
         totalFixedExpenseAmount,
-        pureVariableExpenseSpent,
         initialVariableBudget,
-        remainingVariableBudget,
+        pastVariableExpenseSpent,
         todayVariableExpenseSpent,
+        pureVariableExpenseSpent,
+        remainingVariableBudgetBeforeToday,
+        remainingVariableBudget,
         todayAvailableBudget,
         totalInvestmentPrincipal,
         totalInvestmentCurrentValue,

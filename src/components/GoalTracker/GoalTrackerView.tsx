@@ -21,7 +21,9 @@ export const GoalTrackerView: React.FC = () => {
     remainingVariableBudget,
     monthlyGoalProgress,
     gulbiAdvice,
+    pastVariableExpenseSpent,
     todayVariableExpenseSpent,
+    remainingVariableBudgetBeforeToday,
     todayAvailableBudget,
     categories,
     transactions,
@@ -394,14 +396,30 @@ export const GoalTrackerView: React.FC = () => {
               <span className="text-slate-900 font-bold">{initialVariableBudget.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-slate-500">
-              <span>차감: 이번 달 누적 변동지출:</span>
-              <span className="font-semibold text-rose-600">-{pureVariableExpenseSpent.toLocaleString()}원</span>
+              <span>차감: 어제까지 누적 변동지출:</span>
+              <span className="font-semibold text-slate-700">-{pastVariableExpenseSpent.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-900">
-              <span>남은 변동지출 가용 예산:</span>
-              <span className={`font-bold ${remainingVariableBudget >= 0 ? 'text-amber-600' : 'text-rose-600'}`}>
-                {remainingVariableBudget.toLocaleString()}원
+            <div className="flex justify-between font-semibold text-slate-800">
+              <span>= 오늘 아침 시작 기준 가용 예산:</span>
+              <span className="text-indigo-700 font-bold">{remainingVariableBudgetBeforeToday.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between text-amber-700 font-semibold">
+              <span>➔ 오늘 하루 평균 권장 예산 ({gulbiAdvice.currentDaysLeft}일 분할):</span>
+              <span className="font-bold">{gulbiAdvice.dailyTargetBudget.toLocaleString()}원 / 일</span>
+            </div>
+            <div className="flex justify-between text-rose-600">
+              <span>차감: 오늘 실제 지출한 금액:</span>
+              <span className="font-semibold">-{todayVariableExpenseSpent.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold text-slate-900 text-sm">
+              <span>= 오늘 남은 당일 가용 잔여 예산:</span>
+              <span className={todayAvailableBudget >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                {todayAvailableBudget >= 0 ? `+${todayAvailableBudget.toLocaleString()}원` : `${todayAvailableBudget.toLocaleString()}원`}
               </span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200/80 pt-2 text-[11px] text-slate-500">
+              <span>이번 달 누적 변동지출 총액: <strong className="text-slate-700">{pureVariableExpenseSpent.toLocaleString()}원</strong></span>
+              <span>월말까지 총 남은 가용 예산: <strong className={remainingVariableBudget >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{remainingVariableBudget.toLocaleString()}원</strong></span>
             </div>
           </div>
         </div>
