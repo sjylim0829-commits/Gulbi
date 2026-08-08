@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
             }`}
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span className="whitespace-nowrap">자산 대시보드</span>
+            <span className="whitespace-nowrap">자산</span>
           </button>
 
           <button
@@ -207,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
           }`}
         >
           <LayoutDashboard className="h-3.5 w-3.5" />
-          <span className="whitespace-nowrap">자산 대시보드</span>
+          <span className="whitespace-nowrap">자산</span>
         </button>
 
         <button

@@ -1,18 +1,59 @@
 import React, { useState } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Wallet, TrendingUp, ShieldAlert, ArrowUpRight, ArrowDownRight, Plus, Edit2, Trash2, Landmark, Coins, Building, Banknote, DollarSign, FolderPlus } from 'lucide-react';
 import type { AssetItem, AssetCategoryType } from '../../types/financial';
+import {
+  Wallet,
+  Building2,
+  TrendingUp,
+  Plus,
+  Edit2,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownRight,
+  PieChart as PieIcon,
+  HelpCircle,
+  Landmark,
+} from 'lucide-react';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-const ASSET_CATEGORY_NAMES: Record<AssetCategoryType, { name: string; color: string; icon: any }> = {
-  bank: { name: '예적금/은행', color: '#10b981', icon: Landmark },
-  stock: { name: '주식/펀드', color: '#8b5cf6', icon: TrendingUp },
-  crypto: { name: '가상자산', color: '#f59e0b', icon: Coins },
-  real_estate: { name: '부동산/보증금', color: '#0284c7', icon: Building },
-  cash: { name: '현금', color: '#06b6d4', icon: Banknote },
-  liability: { name: '대출/부채', color: '#ef4444', icon: ShieldAlert },
-  other: { name: '기타자산', color: '#64748b', icon: DollarSign },
-};
+export const COMMON_FINANCIAL_INSTITUTIONS = [
+  'KB국민은행',
+  '신한은행',
+  '하나은행',
+  '우리은행',
+  'NH농협은행',
+  '카카오뱅크',
+  '토스뱅크',
+  '케이뱅크',
+  'IBK기업은행',
+  'SC제일은행',
+  '한국씨티은행',
+  '새마을금고',
+  '신협',
+  '우체국',
+  'DGB대구은행(iM뱅크)',
+  'BNK부산은행',
+  'BNK경남은행',
+  '광주은행',
+  '전북은행',
+  '미래에셋증권',
+  '한국투자증권',
+  'NH투자증권',
+  '삼성증권',
+  'KB증권',
+  '신한투자증권',
+  '키움증권',
+  '토스증권',
+  '하나증권',
+  '현대카드',
+  '신한카드',
+  'KB국민카드',
+  '삼성카드',
+  '롯데카드',
+  '업비트(Upbit)',
+  '빗썸(Bithumb)',
+  '코인원(Coinone)',
+];
 
 export const DashboardView: React.FC = () => {
   const {
@@ -24,7 +65,6 @@ export const DashboardView: React.FC = () => {
     currentMonthExpense,
     currentMonthInvestment,
     assets,
-    transactions,
     addAsset,
     updateAsset,
     deleteAsset,
@@ -85,49 +125,87 @@ export const DashboardView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Prepare Pie Chart Data
-  const pieData = Object.keys(ASSET_CATEGORY_NAMES).map((catKey) => {
-    const key = catKey as AssetCategoryType;
-    const categoryAssets = assets.filter(a => a.category === key);
-    const sum = categoryAssets.reduce((acc, a) => acc + Math.abs(a.amount), 0);
-    return {
-      name: ASSET_CATEGORY_NAMES[key].name,
-      value: sum,
-      color: ASSET_CATEGORY_NAMES[key].color,
-    };
-  }).filter(d => d.value > 0);
+  // Recharts Data Prep: Pie Chart Asset Breakdown
+  const categoryLabels: Record<AssetCategoryType, { label: string; color: string }> = {
+    cash: { label: '현금', color: '#10b981' },
+    bank: { label: '예적금/은행', color: '#3b82f6' },
+    stock: { label: '주식/펀드', color: '#8b5cf6' },
+    crypto: { label: '가상자산', color: '#f59e0b' },
+    real_estate: { label: '부동산/보증금', color: '#06b6d4' },
+    liability: { label: '대출/부채', color: '#f43f5e' },
+    other: { label: '기타 자산', color: '#64748b' },
+  };
 
-  // Cashflow Bar Chart Data
+  const pieDataRaw: Record<AssetCategoryType, number> = {
+    cash: 0,
+    bank: 0,
+    stock: 0,
+    crypto: 0,
+    real_estate: 0,
+    liability: 0,
+    other: 0,
+  };
+
+  assets.forEach((ast) => {
+    pieDataRaw[ast.category] += Math.abs(ast.amount);
+  });
+
+  const pieData = Object.entries(pieDataRaw)
+    .filter(([_, val]) => val > 0)
+    .map(([cat, val]) => ({
+      name: categoryLabels[cat as AssetCategoryType].label,
+      value: val,
+      color: categoryLabels[cat as AssetCategoryType].color,
+    }));
+
   const cashflowData = [
-    { name: '이번달 수입', amount: currentMonthIncome, fill: '#10b981' },
-    { name: '이번달 지출', amount: currentMonthExpense, fill: '#f43f5e' },
-    { name: '이번달 투자', amount: currentMonthInvestment, fill: '#8b5cf6' },
+    { name: '수입', amount: currentMonthIncome, fill: '#10b981' },
+    { name: '지출', amount: currentMonthExpense, fill: '#f43f5e' },
+    { name: '투자금', amount: currentMonthInvestment, fill: '#8b5cf6' },
   ];
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        
-        {/* Net Worth Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-sky-600 p-6 text-white shadow-xl shadow-indigo-600/20">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-100">총 순자산 (Net Worth)</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-md">
-              <Wallet className="h-5 w-5" />
+      
+      {/* Net Worth Hero Overview */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <span className="inline-flex items-center space-x-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 px-3 py-1 text-xs font-bold text-indigo-300 backdrop-blur-md">
+                <Building2 className="h-3.5 w-3.5" />
+                <span>총 순자산 현황</span>
+              </span>
+              <span className="text-xs text-slate-400">실시간 데이터 자동 집계</span>
             </div>
+            <div className="flex items-baseline space-x-3">
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                {netWorth.toLocaleString('ko-KR')} <span className="text-xl font-medium text-slate-300">원</span>
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-400">
+              총 보유자산 <strong className="text-emerald-400">{totalAssets.toLocaleString('ko-KR')}원</strong>에서 대출/부채 <strong className="text-rose-400">{totalLiabilities.toLocaleString('ko-KR')}원</strong>을 제외한 순수 자산입니다.
+            </p>
           </div>
-          <div className="mt-4">
-            <div className="text-3xl font-extrabold text-white tracking-tight">
-              {netWorth.toLocaleString('ko-KR')} <span className="text-base font-normal text-indigo-100">원</span>
-            </div>
-            <div className="mt-2 flex items-center text-xs text-indigo-100 font-medium">
-              <span>보유 자산 - 총 부채 통합액</span>
-            </div>
+
+          <div className="flex items-center space-x-3 shrink-0">
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center space-x-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/30 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>새 자산/대출 추가</span>
+            </button>
           </div>
-          <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
         </div>
 
+        {/* Decorative Background Element */}
+        <div className="absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl"></div>
+      </div>
+
+      {/* 3 Metric Cards Grid */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        
         {/* Total Assets Card */}
         <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between">
@@ -179,29 +257,32 @@ export const DashboardView: React.FC = () => {
                 </div>
               );
             })()}
-            <p className="mt-2 text-xs text-slate-500">수입 {currentMonthIncome.toLocaleString()}원 / 지출 {currentMonthExpense.toLocaleString()}원</p>
+            <p className="mt-2 text-xs text-slate-500">
+              이번 달 수입 (+{currentMonthIncome.toLocaleString()}원) - 지출 (-{currentMonthExpense.toLocaleString()}원)
+            </p>
           </div>
         </div>
 
       </div>
 
-      {/* Visual Analytics Charts Row */}
+      {/* Visual Analytics Charts Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         
-        {/* Pie Chart: Asset Breakdown */}
-        <div className="lg:col-span-7 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs glass-panel">
-          <div className="flex items-center justify-between mb-4">
+        {/* Donut Chart: Asset Allocation */}
+        <div className="lg:col-span-7 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900">자산 포트폴리오 비중</h2>
-              <p className="text-xs text-slate-500">카테고리별 자산 분산 현황</p>
+              <h2 className="text-base font-bold text-slate-900">카테고리별 자산 포트폴리오</h2>
+              <p className="text-xs text-slate-500">자산 유형별 비중 분포</p>
             </div>
+            <PieIcon className="h-5 w-5 text-indigo-500" />
           </div>
 
-          <div className="h-64 w-full flex items-center justify-center">
+          <div className="h-64 w-full my-2">
             {pieData.length === 0 ? (
-              <div className="text-center text-slate-400 text-xs py-12 space-y-2">
-                <FolderPlus className="mx-auto h-8 w-8 text-slate-300" />
-                <p>등록된 자산이 없습니다. 하단의 [새 자산/대출 추가] 버튼으로 계좌를 입력해 보세요.</p>
+              <div className="flex h-full flex-col items-center justify-center text-slate-400 text-xs">
+                <HelpCircle className="h-8 w-8 text-slate-300 mb-2" />
+                <span>등록된 자산이 없습니다. [새 자산/대출 추가]를 눌러보세요!</span>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -247,7 +328,7 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Bar Chart: Monthly Flow */}
-        <div className="lg:col-span-5 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs glass-panel flex flex-col justify-between">
+        <div className="lg:col-span-5 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-900">8월 현금 흐름 요약</h2>
             <p className="text-xs text-slate-500">수입 vs 지출 vs 투자금 비교</p>
@@ -291,33 +372,33 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Asset Items Table & Management Section */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs glass-panel">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">자산 & 부채 세부 목록</h2>
-            <p className="text-xs text-slate-500">보유 계좌, 예적금, 주식, 대출 항목 관리</p>
+            <h2 className="text-base font-bold text-slate-900">상세 자산 & 대출 목록</h2>
+            <p className="text-xs text-slate-500">등록된 개별 자산 및 대출 관리</p>
           </div>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center justify-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all"
+            className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-all"
           >
-            <Plus className="h-4 w-4" />
-            <span>새 자산/대출 추가</span>
+            <Plus className="h-3.5 w-3.5" />
+            <span>추가</span>
           </button>
         </div>
 
         {assets.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-sm space-y-2">
-            <FolderPlus className="mx-auto h-10 w-10 text-slate-300 mb-1" />
-            <p className="font-semibold text-slate-600">등록된 자산이 없습니다.</p>
-            <p className="text-xs text-slate-400">위의 [+ 새 자산/대출 추가] 버튼을 눌러 통장이나 보유 자산을 등록해 보세요!</p>
+          <div className="py-12 text-center text-slate-400 text-xs rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
+            <Wallet className="mx-auto h-10 w-10 text-slate-300 mb-1" />
+            <p className="font-semibold text-slate-600 text-sm">등록된 자산이 없습니다.</p>
+            <p className="text-xs text-slate-400">상단의 [새 자산/대출 추가] 버튼을 눌러 예적금, 대출, 주식을 등록해 보세요!</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-700">
               <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3">자산명</th>
+                  <th className="px-4 py-3">자산/대출명</th>
                   <th className="px-4 py-3">구분</th>
                   <th className="px-4 py-3">금융기관</th>
                   <th className="px-4 py-3 text-right">금액</th>
@@ -325,53 +406,50 @@ export const DashboardView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {assets.map((ast) => {
-                  const catMeta = ASSET_CATEGORY_NAMES[ast.category];
-                  const IconComponent = catMeta.icon;
-                  const isLiability = ast.amount < 0;
+                {assets.map((asset) => {
+                  const isLiability = asset.amount < 0;
+                  const catConfig = categoryLabels[asset.category];
 
                   return (
-                    <tr key={ast.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3.5 font-semibold text-slate-900">
-                        <div className="flex items-center space-x-3">
-                          <div
-                            className="flex h-9 w-9 items-center justify-center rounded-xl shrink-0"
-                            style={{ backgroundColor: `${catMeta.color}15`, color: catMeta.color }}
-                          >
-                            <IconComponent className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div>{ast.name}</div>
-                            {ast.note && <div className="text-xs text-slate-400 font-normal">{ast.note}</div>}
-                          </div>
-                        </div>
+                    <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-900">
+                        <div>{asset.name}</div>
+                        {asset.note && <div className="text-xs text-slate-400 font-normal">{asset.note}</div>}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 text-xs">
                         <span
-                          className="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold"
-                          style={{ backgroundColor: `${catMeta.color}15`, color: catMeta.color }}
+                          className="inline-flex items-center space-x-1 rounded-full px-2.5 py-0.5 text-xs font-bold"
+                          style={{ backgroundColor: `${catConfig.color}15`, color: catConfig.color }}
                         >
-                          {catMeta.name}
+                          <span>●</span>
+                          <span>{catConfig.label}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-500">{ast.institution || '-'}</td>
-                      <td className="px-4 py-3.5 text-right font-extrabold text-slate-900">
-                        <span className={isLiability ? 'text-rose-600' : 'text-emerald-600'}>
-                          {isLiability ? '' : '+'}{ast.amount.toLocaleString()}원
-                        </span>
+                      <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">
+                        {asset.institution ? (
+                          <span className="inline-flex items-center space-x-1">
+                            <Landmark className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{asset.institution}</span>
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className={`px-4 py-3.5 text-right font-extrabold text-sm ${isLiability ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {isLiability ? `-${Math.abs(asset.amount).toLocaleString()}원` : `+${asset.amount.toLocaleString()}원`}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <div className="flex items-center justify-center space-x-2">
                           <button
-                            onClick={() => openEditModal(ast)}
+                            onClick={() => openEditModal(asset)}
                             className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => {
-                              if (confirm(`'${ast.name}' 자산을 삭제하시겠습니까?`)) {
-                                deleteAsset(ast.id);
+                              if (confirm(`'${asset.name}' 자산 항목을 삭제하시겠습니까?`)) {
+                                deleteAsset(asset.id);
                               }
                             }}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-all"
@@ -385,60 +463,6 @@ export const DashboardView: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Transactions Quick Snapshot */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs glass-panel">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-900">최근 거래 내역</h2>
-          <span className="text-xs text-slate-500">가계부 장부 메뉴에서 등록 가능</span>
-        </div>
-
-        {transactions.length === 0 ? (
-          <div className="py-6 text-center text-slate-400 text-xs">
-            등록된 수입/지출 내역이 없습니다. [가계부 장부] 메뉴에서 거래를 입력해 보세요.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {transactions.slice(0, 5).map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 border border-slate-200/60 hover:bg-slate-100 transition-all">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl font-bold text-xs ${
-                      t.type === 'income'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : t.type === 'investment'
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-rose-100 text-rose-700'
-                    }`}
-                  >
-                    {t.type === 'income' ? '수입' : t.type === 'investment' ? '투자' : '지출'}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-slate-900 text-sm">{t.merchant}</div>
-                    <div className="text-xs text-slate-500">
-                      {t.date} | {t.categoryName} {t.paymentMethod && `(${t.paymentMethod})`}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div
-                    className={`font-bold text-sm ${
-                      t.type === 'income'
-                        ? 'text-emerald-600'
-                        : t.type === 'investment'
-                        ? 'text-purple-600'
-                        : 'text-rose-600'
-                    }`}
-                  >
-                    {t.type === 'income' ? '+' : t.type === 'investment' ? '➔ ' : '-'}{t.amount.toLocaleString()}원
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -457,7 +481,7 @@ export const DashboardView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="예: 신한 주거래 통장, 삼성전자 주식"
+                  placeholder="예: 신한 주거래 통장, 삼성전자 주식, 주택담보대출"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
@@ -496,14 +520,76 @@ export const DashboardView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">금융기관/기관명 (선택)</label>
-                <input
-                  type="text"
-                  placeholder="예: 신한은행, 키움증권, 업비트"
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
-                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">금융기관/은행 (목록 선택 & 수기 입력)</label>
+                <div className="space-y-2">
+                  <select
+                    value={COMMON_FINANCIAL_INSTITUTIONS.includes(institution) ? institution : institution ? 'CUSTOM' : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'CUSTOM') {
+                        setInstitution('');
+                      } else {
+                        setInstitution(val);
+                      }
+                    }}
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
+                  >
+                    <option value="">🏦 주요 금융기관 목록에서 선택</option>
+                    <optgroup label="주요 시중/인터넷 은행">
+                      <option value="KB국민은행">KB국민은행</option>
+                      <option value="신한은행">신한은행</option>
+                      <option value="하나은행">하나은행</option>
+                      <option value="우리은행">우리은행</option>
+                      <option value="NH농협은행">NH농협은행</option>
+                      <option value="카카오뱅크">카카오뱅크</option>
+                      <option value="토스뱅크">토스뱅크</option>
+                      <option value="케이뱅크">케이뱅크</option>
+                      <option value="IBK기업은행">IBK기업은행</option>
+                      <option value="SC제일은행">SC제일은행</option>
+                      <option value="한국씨티은행">한국씨티은행</option>
+                    </optgroup>
+                    <optgroup label="지방/특수 은행">
+                      <option value="새마을금고">새마을금고</option>
+                      <option value="신협">신협</option>
+                      <option value="우체국">우체국</option>
+                      <option value="DGB대구은행(iM뱅크)">DGB대구은행(iM뱅크)</option>
+                      <option value="BNK부산은행">BNK부산은행</option>
+                      <option value="BNK경남은행">BNK경남은행</option>
+                      <option value="광주은행">광주은행</option>
+                      <option value="전북은행">전북은행</option>
+                    </optgroup>
+                    <optgroup label="증권사">
+                      <option value="미래에셋증권">미래에셋증권</option>
+                      <option value="한국투자증권">한국투자증권</option>
+                      <option value="NH투자증권">NH투자증권</option>
+                      <option value="삼성증권">삼성증권</option>
+                      <option value="KB증권">KB증권</option>
+                      <option value="신한투자증권">신한투자증권</option>
+                      <option value="키움증권">키움증권</option>
+                      <option value="토스증권">토스증권</option>
+                      <option value="하나증권">하나증권</option>
+                    </optgroup>
+                    <optgroup label="카드 / 가상자산">
+                      <option value="현대카드">현대카드</option>
+                      <option value="신한카드">신한카드</option>
+                      <option value="KB국민카드">KB국민카드</option>
+                      <option value="삼성카드">삼성카드</option>
+                      <option value="롯데카드">롯데카드</option>
+                      <option value="업비트(Upbit)">업비트(Upbit)</option>
+                      <option value="빗썸(Bithumb)">빗썸(Bithumb)</option>
+                      <option value="코인원(Coinone)">코인원(Coinone)</option>
+                    </optgroup>
+                    <option value="CUSTOM">✏️ 직접 수기 입력하기...</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    placeholder="금융기관 직접 수기 입력 (예: 수협은행, 미국 체이스은행 등)"
+                    value={institution}
+                    onChange={(e) => setInstitution(e.target.value)}
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -536,6 +622,7 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
