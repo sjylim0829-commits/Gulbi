@@ -20,6 +20,8 @@ export interface AssetItem {
   institution?: string;
   note?: string;
   updatedAt: string;
+  isLinkedFromInvestment?: boolean;
+  investmentId?: string;
 }
 
 export interface FixedExpense {

@@ -413,8 +413,16 @@ export const DashboardView: React.FC = () => {
                   return (
                     <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3.5 font-bold text-slate-900">
-                        <div>{asset.name}</div>
-                        {asset.note && <div className="text-xs text-slate-400 font-normal">{asset.note}</div>}
+                        <div className="flex items-center space-x-2">
+                          <span>{asset.name}</span>
+                          {asset.isLinkedFromInvestment && (
+                            <span className="inline-flex items-center space-x-1 rounded-lg bg-purple-50 border border-purple-200 px-2 py-0.5 text-[11px] font-bold text-purple-700">
+                              <TrendingUp className="h-3 w-3 text-purple-600" />
+                              <span>투자 탭 연동</span>
+                            </span>
+                          )}
+                        </div>
+                        {asset.note && <div className="text-xs text-slate-400 font-normal mt-0.5">{asset.note}</div>}
                       </td>
                       <td className="px-4 py-3.5 text-xs">
                         <span

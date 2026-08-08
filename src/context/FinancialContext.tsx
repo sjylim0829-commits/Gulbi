@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { AssetItem, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, Transaction } from '../types/financial';
+import type { AssetItem, AssetCategoryType, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, Transaction } from '../types/financial';
 import { INITIAL_ASSETS, INITIAL_CATEGORIES, INITIAL_GOAL, INITIAL_TRANSACTIONS } from '../utils/mockData';
 
 interface FinancialContextType {
   currentUsername: string;
   categories: Category[];
   assets: AssetItem[];
+  rawManualAssets: AssetItem[];
   transactions: Transaction[];
   fixedExpenses: FixedExpense[];
   expectedIncomeItems: ExpectedIncomeItem[];
@@ -118,6 +119,15 @@ function loadUserStorageItem<T>(username: string, subKey: string, fallback: T): 
   return fallback;
 }
 
+function mapInvestmentCategoryToAssetCategory(catName: string): AssetCategoryType {
+  const name = (catName || '').toLowerCase();
+  if (name.includes('주식') || name.includes('펀드') || name.includes('etf') || name.includes('stock')) return 'stock';
+  if (name.includes('코인') || name.includes('가상') || name.includes('crypto')) return 'crypto';
+  if (name.includes('예적금') || name.includes('저축') || name.includes('은행') || name.includes('bank')) return 'bank';
+  if (name.includes('부동산') || name.includes('보증금')) return 'real_estate';
+  return 'stock';
+}
+
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
 export const FinancialProvider: React.FC<{ username: string; children: React.ReactNode }> = ({ username, children }) => {
@@ -127,7 +137,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES);
   });
 
-  const [assets, setAssets] = useState<AssetItem[]>(() => {
+  const [manualAssets, setManualAssets] = useState<AssetItem[]>(() => {
     const fallback = currentUsername === 'sjylim' ? INITIAL_ASSETS : [];
     return loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', fallback);
   });
@@ -157,7 +167,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   // Re-load data whenever currentUsername changes
   useEffect(() => {
     setCategories(loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES));
-    setAssets(loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', currentUsername === 'sjylim' ? INITIAL_ASSETS : []));
+    setManualAssets(loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', currentUsername === 'sjylim' ? INITIAL_ASSETS : []));
     setTransactions(loadUserStorageItem<Transaction[]>(currentUsername, 'transactions', currentUsername === 'sjylim' ? INITIAL_TRANSACTIONS : []));
     setFixedExpenses(loadUserStorageItem<FixedExpense[]>(currentUsername, 'fixed_expenses', []));
     setExpectedIncomeItems(loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []));
@@ -165,7 +175,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setGoal(loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' }));
   }, [currentUsername]);
 
-  // Sync state to LocalStorage reliably
+  // Sync state to LocalStorage
   useEffect(() => {
     try {
       localStorage.setItem(getUserStorageKey(currentUsername, 'categories'), JSON.stringify(categories));
@@ -176,11 +186,11 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
 
   useEffect(() => {
     try {
-      localStorage.setItem(getUserStorageKey(currentUsername, 'assets'), JSON.stringify(assets));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'assets'), JSON.stringify(manualAssets));
     } catch (e) {
       console.error('Error saving assets:', e);
     }
-  }, [assets, currentUsername]);
+  }, [manualAssets, currentUsername]);
 
   useEffect(() => {
     try {
@@ -221,6 +231,31 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       console.error('Error saving goal:', e);
     }
   }, [goal, currentUsername]);
+
+  // Effective Combined Assets: Merges manual assets with real-time linked investment items!
+  const assets = useMemo<AssetItem[]>(() => {
+    const invItemNames = new Set(investmentItems.map(i => i.name.toLowerCase().trim()));
+
+    // Filter out manual assets that share exact same name as an investment item to avoid duplicate counting
+    const filteredManual = manualAssets.filter(ma => !invItemNames.has(ma.name.toLowerCase().trim()));
+
+    const linkedAssets: AssetItem[] = investmentItems.map(inv => {
+      const astCat = mapInvestmentCategoryToAssetCategory(inv.categoryName);
+      return {
+        id: `linked_inv_${inv.id}`,
+        name: inv.name,
+        category: astCat,
+        amount: inv.currentValue, // Real-time evaluation value!
+        institution: inv.institution,
+        note: inv.memo ? `${inv.memo} (📈 투자 탭 실시간 연동)` : '📈 투자 탭 실시간 연동 (수익률 추적 중)',
+        updatedAt: inv.updatedAt || new Date().toISOString().split('T')[0],
+        isLinkedFromInvestment: true,
+        investmentId: inv.id,
+      };
+    });
+
+    return [...linkedAssets, ...filteredManual];
+  }, [manualAssets, investmentItems]);
 
   // Asset totals
   const totalAssets = useMemo(() => {
@@ -399,15 +434,33 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       id: `ast_${Date.now()}`,
       updatedAt: new Date().toISOString().split('T')[0],
     };
-    setAssets(prev => [...prev, newAsset]);
+    setManualAssets(prev => [...prev, newAsset]);
   };
 
   const updateAsset = (id: string, updated: Partial<AssetItem>) => {
-    setAssets(prev => prev.map(a => (a.id === id ? { ...a, ...updated, updatedAt: new Date().toISOString().split('T')[0] } : a)));
+    if (id.startsWith('linked_inv_')) {
+      const invId = id.replace('linked_inv_', '');
+      if (updated.amount !== undefined) {
+        updateInvestmentItem(invId, { currentValue: Math.abs(updated.amount) });
+      }
+      if (updated.name !== undefined) {
+        updateInvestmentItem(invId, { name: updated.name });
+      }
+      if (updated.institution !== undefined) {
+        updateInvestmentItem(invId, { institution: updated.institution });
+      }
+      return;
+    }
+    setManualAssets(prev => prev.map(a => (a.id === id ? { ...a, ...updated, updatedAt: new Date().toISOString().split('T')[0] } : a)));
   };
 
   const deleteAsset = (id: string) => {
-    setAssets(prev => prev.filter(a => a.id !== id));
+    if (id.startsWith('linked_inv_')) {
+      const invId = id.replace('linked_inv_', '');
+      deleteInvestmentItem(invId);
+      return;
+    }
+    setManualAssets(prev => prev.filter(a => a.id !== id));
   };
 
   // Fixed Expense Actions
@@ -556,7 +609,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
 
   const resetToMockData = () => {
     setCategories(INITIAL_CATEGORIES);
-    setAssets([]);
+    setManualAssets([]);
     setTransactions([]);
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
@@ -565,7 +618,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   };
 
   const clearAllData = () => {
-    setAssets([]);
+    setManualAssets([]);
     setTransactions([]);
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
@@ -580,7 +633,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       username: currentUsername,
       exportedAt: new Date().toISOString(),
       categories,
-      assets,
+      assets: manualAssets,
       transactions,
       fixedExpenses,
       expectedIncomeItems,
@@ -602,7 +655,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     try {
       const data = JSON.parse(jsonString);
       if (Array.isArray(data.categories)) setCategories(data.categories);
-      if (Array.isArray(data.assets)) setAssets(data.assets);
+      if (Array.isArray(data.assets)) setManualAssets(data.assets);
       if (Array.isArray(data.transactions)) setTransactions(data.transactions);
       if (Array.isArray(data.fixedExpenses)) setFixedExpenses(data.fixedExpenses);
       if (Array.isArray(data.expectedIncomeItems)) setExpectedIncomeItems(data.expectedIncomeItems);
@@ -621,6 +674,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         currentUsername,
         categories,
         assets,
+        rawManualAssets: manualAssets,
         transactions,
         fixedExpenses,
         expectedIncomeItems,
