@@ -9,9 +9,10 @@ interface HeaderProps {
   setActiveTab: (tab: ActiveTab) => void;
   openChat: () => void;
   onLogout: () => void;
+  currentUsername: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openChat, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openChat, onLogout, currentUsername }) => {
   const { netWorth, gulbiAdvice, clearAllData, exportBackupJSON, importBackupJSON } = useFinancial();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,9 +130,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
             </span>
           </div>
 
-          <div className="hidden xl:flex items-center space-x-1.5 rounded-xl bg-indigo-50 px-2.5 py-1 border border-indigo-100 text-xs font-bold text-indigo-700">
+          <div
+            className={`hidden xl:flex items-center space-x-1.5 rounded-xl px-2.5 py-1 text-xs font-bold border ${
+              currentUsername === 'test'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+            }`}
+          >
             <UserCheck className="h-3.5 w-3.5" />
-            <span>sjylim</span>
+            <span>{currentUsername}</span>
+            {currentUsername === 'test' && <span className="text-[10px] bg-emerald-200 text-emerald-800 px-1 rounded">테스트</span>}
           </div>
 
           <button
@@ -170,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, openCha
 
           <button
             onClick={() => {
-              if (confirm('⚠️ 정말로 모든 자산 데이터를 초기화하시겠습니까?')) {
+              if (confirm(`⚠️ 정말로 '${currentUsername}' 계정의 모든 데이터를 초기화하시겠습니까?`)) {
                 clearAllData();
               }
             }}

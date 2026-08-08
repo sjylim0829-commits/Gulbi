@@ -3,6 +3,7 @@ import type { AssetItem, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice
 import { INITIAL_ASSETS, INITIAL_CATEGORIES, INITIAL_GOAL, INITIAL_TRANSACTIONS } from '../utils/mockData';
 
 interface FinancialContextType {
+  currentUsername: string;
   categories: Category[];
   assets: AssetItem[];
   transactions: Transaction[];
@@ -64,106 +65,136 @@ interface FinancialContextType {
   importBackupJSON: (jsonString: string) => boolean;
 }
 
-// Permanent LocalStorage Storage Key
-const PERMANENT_STORAGE_KEY = 'gulbi_user_persistent_data';
+const LEGACY_STORAGE_KEY = 'gulbi_user_persistent_data';
 const LEGACY_KEYS = ['gulbi_financial_data_v3', 'gulbi_financial_data_v2', 'gulbi_financial_data_v1'];
 
-function loadStorageItem<T>(subKey: string, fallback: T): T {
+function getUserStorageKey(username: string, subKey: string): string {
+  const safeUser = (username || 'guest').toLowerCase().trim();
+  return `gulbi_account_${safeUser}_${subKey}`;
+}
+
+function loadUserStorageItem<T>(username: string, subKey: string, fallback: T): T {
   try {
-    const primary = localStorage.getItem(`${PERMANENT_STORAGE_KEY}_${subKey}`);
-    if (primary) {
-      return JSON.parse(primary) as T;
+    const userKey = getUserStorageKey(username, subKey);
+    const existing = localStorage.getItem(userKey);
+    if (existing) {
+      return JSON.parse(existing) as T;
     }
 
-    for (const legacyKey of LEGACY_KEYS) {
-      const legacyItem = localStorage.getItem(`${legacyKey}_${subKey}`);
-      if (legacyItem) {
-        const parsed = JSON.parse(legacyItem) as T;
-        localStorage.setItem(`${PERMANENT_STORAGE_KEY}_${subKey}`, JSON.stringify(parsed));
+    // Migration for main account 'sjylim'
+    if (username.toLowerCase().trim() === 'sjylim') {
+      const primaryLegacy = localStorage.getItem(`${LEGACY_STORAGE_KEY}_${subKey}`);
+      if (primaryLegacy) {
+        const parsed = JSON.parse(primaryLegacy) as T;
+        localStorage.setItem(userKey, JSON.stringify(parsed));
         return parsed;
+      }
+
+      for (const legacyKey of LEGACY_KEYS) {
+        const legacyItem = localStorage.getItem(`${legacyKey}_${subKey}`);
+        if (legacyItem) {
+          const parsed = JSON.parse(legacyItem) as T;
+          localStorage.setItem(userKey, JSON.stringify(parsed));
+          return parsed;
+        }
       }
     }
   } catch (e) {
-    console.error(`Failed to load storage item ${subKey}:`, e);
+    console.error(`Failed to load storage item for ${username} (${subKey}):`, e);
   }
   return fallback;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
-export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const FinancialProvider: React.FC<{ username: string; children: React.ReactNode }> = ({ username, children }) => {
+  const currentUsername = (username || 'sjylim').toLowerCase().trim();
+
   const [categories, setCategories] = useState<Category[]>(() => {
-    return loadStorageItem<Category[]>('categories', INITIAL_CATEGORIES);
+    return loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES);
   });
 
   const [assets, setAssets] = useState<AssetItem[]>(() => {
-    return loadStorageItem<AssetItem[]>('assets', INITIAL_ASSETS);
+    const fallback = currentUsername === 'sjylim' ? INITIAL_ASSETS : [];
+    return loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', fallback);
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    return loadStorageItem<Transaction[]>('transactions', INITIAL_TRANSACTIONS);
+    const fallback = currentUsername === 'sjylim' ? INITIAL_TRANSACTIONS : [];
+    return loadUserStorageItem<Transaction[]>(currentUsername, 'transactions', fallback);
   });
 
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>(() => {
-    return loadStorageItem<FixedExpense[]>('fixed_expenses', []);
+    return loadUserStorageItem<FixedExpense[]>(currentUsername, 'fixed_expenses', []);
   });
 
   const [expectedIncomeItems, setExpectedIncomeItems] = useState<ExpectedIncomeItem[]>(() => {
-    return loadStorageItem<ExpectedIncomeItem[]>('expected_income_items', []);
+    return loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []);
   });
 
   const [goal, setGoal] = useState<MonthlyGoal>(() => {
-    return loadStorageItem<MonthlyGoal>('goal', INITIAL_GOAL);
+    const fallback = currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
+    return loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', fallback);
   });
 
-  // Sync state to LocalStorage reliably
+  // Re-load data whenever currentUsername changes
+  useEffect(() => {
+    setCategories(loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES));
+    setAssets(loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', currentUsername === 'sjylim' ? INITIAL_ASSETS : []));
+    setTransactions(loadUserStorageItem<Transaction[]>(currentUsername, 'transactions', currentUsername === 'sjylim' ? INITIAL_TRANSACTIONS : []));
+    setFixedExpenses(loadUserStorageItem<FixedExpense[]>(currentUsername, 'fixed_expenses', []));
+    setExpectedIncomeItems(loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []));
+    setGoal(loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: '2026-08', targetIncreaseAmount: 0, expectedIncome: 0, note: '' }));
+  }, [currentUsername]);
+
+  // Sync state to LocalStorage reliably for currentUsername
   useEffect(() => {
     try {
-      localStorage.setItem(`${PERMANENT_STORAGE_KEY}_categories`, JSON.stringify(categories));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'categories'), JSON.stringify(categories));
     } catch (e) {
       console.error('Error saving categories:', e);
     }
-  }, [categories]);
+  }, [categories, currentUsername]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(`${PERMANENT_STORAGE_KEY}_assets`, JSON.stringify(assets));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'assets'), JSON.stringify(assets));
     } catch (e) {
       console.error('Error saving assets:', e);
     }
-  }, [assets]);
+  }, [assets, currentUsername]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(`${PERMANENT_STORAGE_KEY}_transactions`, JSON.stringify(transactions));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'transactions'), JSON.stringify(transactions));
     } catch (e) {
       console.error('Error saving transactions:', e);
     }
-  }, [transactions]);
+  }, [transactions, currentUsername]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(`${PERMANENT_STORAGE_KEY}_fixed_expenses`, JSON.stringify(fixedExpenses));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'fixed_expenses'), JSON.stringify(fixedExpenses));
     } catch (e) {
       console.error('Error saving fixed expenses:', e);
     }
-  }, [fixedExpenses]);
+  }, [fixedExpenses, currentUsername]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(`${PERMANENT_STORAGE_KEY}_expected_income_items`, JSON.stringify(expectedIncomeItems));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'expected_income_items'), JSON.stringify(expectedIncomeItems));
     } catch (e) {
       console.error('Error saving expected income items:', e);
     }
-  }, [expectedIncomeItems]);
+  }, [expectedIncomeItems, currentUsername]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(`${PERMANENT_STORAGE_KEY}_goal`, JSON.stringify(goal));
+      localStorage.setItem(getUserStorageKey(currentUsername, 'goal'), JSON.stringify(goal));
     } catch (e) {
       console.error('Error saving goal:', e);
     }
-  }, [goal]);
+  }, [goal, currentUsername]);
 
   // Asset totals
   const totalAssets = useMemo(() => {
@@ -274,7 +305,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const adviceList: string[] = [];
 
     if (targetVal <= 0) {
-      adviceList.push('🎯 상단의 [목표 자산 증액] 메뉴에서 이번 달 목표 증액 금액 및 예상 수입 항목을 설정해 보세요!');
+      adviceList.push(`🎯 안녕하세요, ${currentUsername}님! 상단의 [목표 자산 증액] 메뉴에서 이번 달 목표 및 예상 수입을 설정해 보세요!`);
       if (totalFixedExpenseAmount > 0) {
         adviceList.push(`💳 매월 고정지출(${totalFixedExpenseAmount.toLocaleString()}원)을 미리 차감하여 순수 변동지출 일일 한도를 산출합니다.`);
       }
@@ -286,7 +317,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       adviceList.push(`📅 매월 고정지출(${totalFixedExpenseAmount.toLocaleString()}원)을 보존하고 남은 ${daysLeft}일 동안 하루 평균 ${dailyTargetBudget.toLocaleString()}원 이하로 변동지출(식비/쇼핑)을 관리해 보세요.`);
     }
 
-    let statusMessage = '굴비가 고정지출과 증액 목표를 모두 고려해 권장 예산을 관리합니다! 🐟';
+    let statusMessage = `${currentUsername}님 전용 자산 가계부입니다. 굴비가 스마트하게 예산을 관리합니다! 🐟`;
     if (targetVal <= 0) statusMessage = '이번 달 목표 자산 증액분 및 예상 수입을 설정해 보세요! 🎯';
     else if (spendingPace === 'safe') statusMessage = '고정지출을 차감한 후에도 안전한 소비 페이스를 유지하고 있습니다. 🐟✨';
     else if (spendingPace === 'caution') statusMessage = '고정지출 차감 후 가용 예산이 다소 부족합니다. 변동 지출을 점검하세요! ⚠️';
@@ -301,7 +332,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       projectedIncrease: currentMonthNetSaving,
       adviceList,
     };
-  }, [goal.targetIncreaseAmount, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount]);
+  }, [currentUsername, goal.targetIncreaseAmount, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount]);
 
   // Actions
   const addCategory = (cat: Omit<Category, 'id'>) => {
@@ -458,6 +489,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const exportBackupJSON = () => {
     const backupData = {
       version: 1,
+      username: currentUsername,
       exportedAt: new Date().toISOString(),
       categories,
       assets,
@@ -471,7 +503,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gulbi_asset_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `gulbi_${currentUsername}_asset_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -496,6 +528,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <FinancialContext.Provider
       value={{
+        currentUsername,
         categories,
         assets,
         transactions,

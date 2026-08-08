@@ -9,24 +9,27 @@ import { CategoryManagerView } from './components/CategoryManager/CategoryManage
 import { GulbiChatDrawer } from './components/GulbiChat/GulbiChatDrawer';
 import { LoginView } from './components/Auth/LoginView';
 
-export const AppContent: React.FC = () => {
+function getStoredUsername(): string | null {
+  try {
+    const local = localStorage.getItem('gulbi_auth_user');
+    if (local) {
+      const parsed = JSON.parse(local);
+      if (parsed.username) return parsed.username;
+    }
+    const session = sessionStorage.getItem('gulbi_auth_user');
+    if (session) {
+      const parsed = JSON.parse(session);
+      if (parsed.username) return parsed.username;
+    }
+  } catch (e) {
+    console.error('Failed to parse auth user:', e);
+  }
+  return null;
+}
+
+export const AppContent: React.FC<{ currentUsername: string; onLogout: () => void }> = ({ currentUsername, onLogout }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const localUser = localStorage.getItem('gulbi_auth_user');
-    const sessionUser = sessionStorage.getItem('gulbi_auth_user');
-    return Boolean(localUser || sessionUser);
-  });
-
-  const handleLogout = () => {
-    localStorage.removeItem('gulbi_auth_user');
-    sessionStorage.removeItem('gulbi_auth_user');
-    setIsAuthenticated(false);
-  };
-
-  if (!isAuthenticated) {
-    return <LoginView onLoginSuccess={() => setIsAuthenticated(true)} />;
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-500 selection:text-white flex flex-col">
@@ -35,7 +38,8 @@ export const AppContent: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         openChat={() => setIsChatOpen(true)}
-        onLogout={handleLogout}
+        onLogout={onLogout}
+        currentUsername={currentUsername}
       />
 
       {/* Main Content Body */}
@@ -52,7 +56,7 @@ export const AppContent: React.FC = () => {
         <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-slate-700">Gulbi (굴비) AI</span>
-            <span>· 영구 보존 스마트 가계부 & 자산 관리 에이전트</span>
+            <span>· 계정별 데이터 격리 가계부 & 자산 관리 에이전트</span>
           </div>
           <p className="text-slate-400">© 2026 Gulbi Financial Agent. All rights reserved.</p>
         </div>
@@ -65,9 +69,25 @@ export const AppContent: React.FC = () => {
 };
 
 export function App() {
+  const [authUsername, setAuthUsername] = useState<string | null>(getStoredUsername);
+
+  const handleLoginSuccess = (username: string) => {
+    setAuthUsername(username);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('gulbi_auth_user');
+    sessionStorage.removeItem('gulbi_auth_user');
+    setAuthUsername(null);
+  };
+
+  if (!authUsername) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
-    <FinancialProvider>
-      <AppContent />
+    <FinancialProvider username={authUsername}>
+      <AppContent currentUsername={authUsername} onLogout={handleLogout} />
     </FinancialProvider>
   );
 }
