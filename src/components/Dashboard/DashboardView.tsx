@@ -184,7 +184,7 @@ export const DashboardView: React.FC = () => {
     <div className="space-y-6 pb-12">
       
       {/* Net Worth Hero Overview */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white border border-slate-800 shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
@@ -223,42 +223,42 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         
         {/* Total Assets Card */}
-        <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs">
+        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">총 보유 자산</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">총 보유 자산</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
               <ArrowUpRight className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl font-extrabold text-white tracking-tight">
-              {totalAssets.toLocaleString('ko-KR')} <span className="text-sm font-normal text-slate-400">원</span>
+            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              {totalAssets.toLocaleString('ko-KR')} <span className="text-sm font-normal text-slate-500">원</span>
             </div>
-            <p className="mt-2 text-xs text-slate-400">예적금, 주식, 부동산 등 {assets.filter(a => a.amount > 0).length}개 항목</p>
+            <p className="mt-2 text-xs text-slate-500">예적금, 주식, 부동산 등 {assets.filter(a => a.amount > 0).length}개 항목</p>
           </div>
         </div>
 
         {/* Total Liabilities Card */}
-        <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs">
+        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-rose-400">총 부채/대출</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-950/80 text-rose-400 border border-rose-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-700">총 부채/대출</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 border border-rose-100">
               <ArrowDownRight className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl font-extrabold text-white tracking-tight">
-              {totalLiabilities.toLocaleString('ko-KR')} <span className="text-sm font-normal text-slate-400">원</span>
+            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              {totalLiabilities.toLocaleString('ko-KR')} <span className="text-sm font-normal text-slate-500">원</span>
             </div>
-            <p className="mt-2 text-xs text-slate-400">마이너스 통장 및 대출 {assets.filter(a => a.amount < 0).length}개 항목</p>
+            <p className="mt-2 text-xs text-slate-500">마이너스 통장 및 대출 {assets.filter(a => a.amount < 0).length}개 항목</p>
           </div>
         </div>
 
         {/* Monthly Net Saving Flow */}
-        <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs">
+        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">8월 순저축 (수입 - 지출)</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-950/80 text-amber-400 border border-amber-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-700">8월 순저축 (수입 - 지출)</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
               <TrendingUp className="h-5 w-5" />
             </div>
           </div>
@@ -266,14 +266,14 @@ export const DashboardView: React.FC = () => {
             {(() => {
               const saving = currentMonthIncome - currentMonthExpense;
               const formatted = saving > 0 ? `+${saving.toLocaleString('ko-KR')}` : saving.toLocaleString('ko-KR');
-              const textColor = saving >= 0 ? 'text-emerald-400' : 'text-rose-400';
+              const textColor = saving >= 0 ? 'text-emerald-600' : 'text-rose-600';
               return (
                 <div className={`text-2xl font-extrabold tracking-tight ${textColor}`}>
-                  {formatted} <span className="text-sm font-normal text-slate-400">원</span>
+                  {formatted} <span className="text-sm font-normal text-slate-500">원</span>
                 </div>
               );
             })()}
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-slate-500">
               이번 달 수입 (+{currentMonthIncome.toLocaleString()}원) - 지출 (-{currentMonthExpense.toLocaleString()}원)
             </p>
           </div>
@@ -285,19 +285,19 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         
         {/* Donut Chart: Asset Allocation */}
-        <div className="lg:col-span-7 rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-7 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-white">카테고리별 자산 포트폴리오</h2>
-              <p className="text-xs text-slate-400">자산 유형별 비중 분포</p>
+              <h2 className="text-base font-bold text-slate-900">카테고리별 자산 포트폴리오</h2>
+              <p className="text-xs text-slate-500">자산 유형별 비중 분포</p>
             </div>
-            <PieIcon className="h-5 w-5 text-indigo-400" />
+            <PieIcon className="h-5 w-5 text-indigo-500" />
           </div>
 
           <div className="h-64 w-full my-2">
             {pieData.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs">
-                <HelpCircle className="h-8 w-8 text-slate-600 mb-2" />
+              <div className="flex h-full flex-col items-center justify-center text-slate-400 text-xs">
+                <HelpCircle className="h-8 w-8 text-slate-300 mb-2" />
                 <span>등록된 자산이 없습니다. [새 자산/대출 추가]를 눌러보세요!</span>
               </div>
             ) : (
@@ -318,7 +318,7 @@ export const DashboardView: React.FC = () => {
                   </Pie>
                   <Tooltip
                     formatter={(value: any) => [`${Number(value).toLocaleString()}원`, '금액']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc' }}
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -327,15 +327,15 @@ export const DashboardView: React.FC = () => {
 
           {/* Legend Grid */}
           {pieData.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-4 border-t border-slate-800">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-4 border-t border-slate-100">
               {pieData.map((item, idx) => {
                 const totalSum = totalAssets + totalLiabilities;
                 const pct = totalSum > 0 ? ((item.value / totalSum) * 100).toFixed(1) : '0';
                 return (
                   <div key={idx} className="flex items-center space-x-2 text-xs">
                     <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
-                    <span className="text-slate-300 font-medium truncate">{item.name}</span>
-                    <span className="text-slate-500 text-[11px] ml-auto font-bold">{pct}%</span>
+                    <span className="text-slate-700 font-medium truncate">{item.name}</span>
+                    <span className="text-slate-400 text-[11px] ml-auto font-bold">{pct}%</span>
                   </div>
                 );
               })}
@@ -344,21 +344,21 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Bar Chart: Monthly Flow */}
-        <div className="lg:col-span-5 rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-5 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <h2 className="text-base font-bold text-white">8월 현금 흐름 요약</h2>
-            <p className="text-xs text-slate-400">수입 vs 지출 vs 투자금 비교</p>
+            <h2 className="text-base font-bold text-slate-900">8월 현금 흐름 요약</h2>
+            <p className="text-xs text-slate-500">수입 vs 지출 vs 투자금 비교</p>
           </div>
 
           <div className="h-56 w-full my-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cashflowData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v / 10000}만`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 12 }} />
+                <YAxis stroke="#64748b" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v / 10000}만`} />
                 <Tooltip
                   formatter={(value: any) => [`${Number(value).toLocaleString()}원`, '금액']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc' }}
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }}
                 />
                 <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
                   {cashflowData.map((entry, index) => (
@@ -370,15 +370,15 @@ export const DashboardView: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <div className="rounded-2xl bg-slate-950 p-3 border border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">💵 매월 예상 수입 설정</span>
-              <span className="font-extrabold text-white">
+            <div className="rounded-2xl bg-slate-50 p-3 border border-slate-200/80 flex items-center justify-between text-xs">
+              <span className="text-slate-600 font-medium">💵 매월 예상 수입 설정</span>
+              <span className="font-extrabold text-slate-900">
                 {expectedMonthlyIncome > 0 ? `${expectedMonthlyIncome.toLocaleString()}원` : '미설정'}
               </span>
             </div>
-            <div className="rounded-2xl bg-indigo-950/60 p-3 border border-indigo-800/60 flex items-center justify-between text-xs">
-              <span className="text-indigo-300 font-medium">💡 이번 달 투자 비중</span>
-              <span className="font-extrabold text-indigo-200">
+            <div className="rounded-2xl bg-indigo-50 p-3 border border-indigo-100 flex items-center justify-between text-xs">
+              <span className="text-indigo-800 font-medium">💡 이번 달 투자 비중</span>
+              <span className="font-extrabold text-indigo-900">
                 {currentMonthIncome > 0 ? ((currentMonthInvestment / currentMonthIncome) * 100).toFixed(1) : 0}% (수입 대비)
               </span>
             </div>
@@ -388,34 +388,34 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Asset Items Table & Management Section */}
-      <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs space-y-4">
+      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-white">상세 자산 & 대출 목록</h2>
-            <p className="text-xs text-slate-400">등록된 개별 자산 및 대출 관리</p>
+            <h2 className="text-base font-bold text-slate-900">상세 자산 & 대출 목록</h2>
+            <p className="text-xs text-slate-500">등록된 개별 자산 및 대출 관리</p>
           </div>
 
           <div className="flex items-center space-x-2">
             {/* Sorting Dropdown Control */}
-            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-950 px-3 py-1.5 border border-slate-800 text-xs">
-              <ArrowUpDown className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-              <span className="text-slate-400 font-medium hidden sm:inline">정렬:</span>
+            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 border border-slate-200 text-xs">
+              <ArrowUpDown className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+              <span className="text-slate-500 font-medium hidden sm:inline">정렬:</span>
               <select
                 value={assetSortBy}
                 onChange={(e) => setAssetSortBy(e.target.value as any)}
-                className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
               >
-                <option value="amount_desc" className="bg-slate-900 text-white">금액 높은순 🔻</option>
-                <option value="amount_asc" className="bg-slate-900 text-white">금액 낮은순 🔺</option>
-                <option value="name_asc" className="bg-slate-900 text-white">자산명 오름차순 (가-나-다)</option>
-                <option value="category" className="bg-slate-900 text-white">카테고리별 정렬</option>
-                <option value="date_desc" className="bg-slate-900 text-white">최근 수정순</option>
+                <option value="amount_desc">금액 높은순 🔻</option>
+                <option value="amount_asc">금액 낮은순 🔺</option>
+                <option value="name_asc">자산명 오름차순 (가-나-다)</option>
+                <option value="category">카테고리별 정렬</option>
+                <option value="date_desc">최근 수정순</option>
               </select>
             </div>
 
             <button
               onClick={openAddModal}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/30 transition-all shrink-0"
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all shrink-0"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>추가</span>
@@ -424,15 +424,15 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {sortedAssets.length === 0 ? (
-          <div className="py-12 text-center text-slate-500 text-xs rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-            <Wallet className="mx-auto h-10 w-10 text-slate-600 mb-1" />
-            <p className="font-semibold text-slate-300 text-sm">등록된 자산이 없습니다.</p>
-            <p className="text-xs text-slate-500">상단의 [새 자산/대출 추가] 버튼을 눌러 예적금, 대출, 주식을 등록해 보세요!</p>
+          <div className="py-12 text-center text-slate-400 text-xs rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
+            <Wallet className="mx-auto h-10 w-10 text-slate-300 mb-1" />
+            <p className="font-semibold text-slate-600 text-sm">등록된 자산이 없습니다.</p>
+            <p className="text-xs text-slate-400">상단의 [새 자산/대출 추가] 버튼을 눌러 예적금, 대출, 주식을 등록해 보세요!</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-200">
-              <thead className="bg-slate-950 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
+            <table className="w-full text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3">자산/대출명</th>
                   <th className="px-4 py-3">구분</th>
@@ -441,19 +441,19 @@ export const DashboardView: React.FC = () => {
                   <th className="px-4 py-3 text-center">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-slate-100">
                 {sortedAssets.map((asset) => {
                   const isLiability = asset.amount < 0;
                   const catConfig = categoryLabels[asset.category];
 
                   return (
-                    <tr key={asset.id} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="px-4 py-3.5 font-bold text-white">
+                    <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-900">
                         <div className="flex items-center space-x-2">
                           <span>{asset.name}</span>
                           {asset.isLinkedFromInvestment && (
-                            <span className="inline-flex items-center space-x-1 rounded-lg bg-purple-950 border border-purple-800 px-2 py-0.5 text-[11px] font-bold text-purple-300">
-                              <TrendingUp className="h-3 w-3 text-purple-400" />
+                            <span className="inline-flex items-center space-x-1 rounded-lg bg-purple-50 border border-purple-200 px-2 py-0.5 text-[11px] font-bold text-purple-700">
+                              <TrendingUp className="h-3 w-3 text-purple-600" />
                               <span>투자 탭 연동</span>
                             </span>
                           )}
@@ -463,30 +463,30 @@ export const DashboardView: React.FC = () => {
                       <td className="px-4 py-3.5 text-xs">
                         <span
                           className="inline-flex items-center space-x-1 rounded-full px-2.5 py-0.5 text-xs font-bold"
-                          style={{ backgroundColor: `${catConfig.color}25`, color: catConfig.color }}
+                          style={{ backgroundColor: `${catConfig.color}15`, color: catConfig.color }}
                         >
                           <span>●</span>
                           <span>{catConfig.label}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-300 font-medium">
+                      <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">
                         {asset.institution ? (
                           <span className="inline-flex items-center space-x-1">
-                            <Landmark className="h-3.5 w-3.5 text-slate-500" />
+                            <Landmark className="h-3.5 w-3.5 text-slate-400" />
                             <span>{asset.institution}</span>
                           </span>
                         ) : (
                           '-'
                         )}
                       </td>
-                      <td className={`px-4 py-3.5 text-right font-extrabold text-sm ${isLiability ? 'text-rose-400' : 'text-white'}`}>
+                      <td className={`px-4 py-3.5 text-right font-extrabold text-sm ${isLiability ? 'text-rose-600' : 'text-slate-900'}`}>
                         {isLiability ? `-${Math.abs(asset.amount).toLocaleString()}원` : `+${asset.amount.toLocaleString()}원`}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => openEditModal(asset)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -496,7 +496,7 @@ export const DashboardView: React.FC = () => {
                                 deleteAsset(asset.id);
                               }
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-all"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -513,19 +513,19 @@ export const DashboardView: React.FC = () => {
 
       {/* Asset Edit/Create Modal Dialog */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 p-6 border border-slate-800 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 border border-slate-200 shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">
               {editingAsset ? '자산/대출 정보 수정' : '새 자산 또는 대출 등록'}
             </h3>
 
             <form onSubmit={handleSaveAsset} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">카테고리 구분</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">카테고리 구분</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as AssetCategoryType)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none"
                 >
                   <option value="bank">예적금 / 정기예금 / 은행</option>
                   <option value="stock">주식 / 펀드 / ETF</option>
@@ -538,19 +538,19 @@ export const DashboardView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">자산 또는 대출 항목명</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">자산 또는 대출 항목명</label>
                 <input
                   type="text"
                   required
                   placeholder="예: 국민 청약통장, 아파트 전세보증금, 마이너스 통장"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">금융기관 / 거래소 선택 및 수기 입력</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">금융기관 / 거래소 선택 및 수기 입력</label>
                 <div className="space-y-2">
                   <select
                     value={COMMON_FINANCIAL_INSTITUTIONS.includes(institution) ? institution : 'custom'}
@@ -561,7 +561,7 @@ export const DashboardView: React.FC = () => {
                         setInstitution('');
                       }
                     }}
-                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none"
                   >
                     <option value="">-- 금융기관/은행 목록 선택 --</option>
                     {COMMON_FINANCIAL_INSTITUTIONS.map((inst) => (
@@ -578,14 +578,14 @@ export const DashboardView: React.FC = () => {
                       placeholder="금융기관/증권사/카드사 이름을 직접 입력"
                       value={institution}
                       onChange={(e) => setInstitution(e.target.value)}
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {category === 'liability' ? '대출 / 부채 금액 (원)' : '평가 금액 (원)'}
                 </label>
                 <input
@@ -594,18 +594,18 @@ export const DashboardView: React.FC = () => {
                   placeholder="예: 5000000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none font-mono"
+                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">메모 (선택)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">메모 (선택)</label>
                 <input
                   type="text"
                   placeholder="예: 연 3.8% 금리, 만기 2027년"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none"
                 />
               </div>
 
@@ -613,13 +613,13 @@ export const DashboardView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/30"
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20"
                 >
                   저장하기
                 </button>

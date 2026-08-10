@@ -167,7 +167,7 @@ export const InvestmentsView: React.FC = () => {
       )}
 
       {/* Hero Overview Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 p-6 sm:p-8 text-white border border-slate-800 shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           
           <div className="space-y-2">
@@ -176,7 +176,7 @@ export const InvestmentsView: React.FC = () => {
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                 <span>투자 자산 포트폴리오</span>
               </span>
-              <span className="text-xs text-purple-300">실시간 평가손익 추적</span>
+              <span className="text-xs text-purple-200">실시간 평가손익 추적</span>
             </div>
 
             <div className="flex flex-wrap items-baseline gap-3">
@@ -221,19 +221,19 @@ export const InvestmentsView: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         
         {/* Pie Chart: Investment Allocation by Category */}
-        <div className="lg:col-span-7 rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-7 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-white">투자 카테고리별 비중</h2>
-              <p className="text-xs text-slate-400">주식, 펀드, 코인, 예적금 등 투자 분포</p>
+              <h2 className="text-base font-bold text-slate-900">투자 카테고리별 비중</h2>
+              <p className="text-xs text-slate-500">주식, 펀드, 코인, 예적금 등 투자 분포</p>
             </div>
-            <PieIcon className="h-5 w-5 text-purple-400" />
+            <PieIcon className="h-5 w-5 text-purple-500" />
           </div>
 
           <div className="h-64 w-full my-2">
             {pieData.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs">
-                <LineChart className="h-8 w-8 text-slate-600 mb-2" />
+              <div className="flex h-full flex-col items-center justify-center text-slate-400 text-xs">
+                <LineChart className="h-8 w-8 text-slate-300 mb-2" />
                 <span>등록된 투자 종목이 없습니다. [새 투자 종목 추가]를 눌러보세요!</span>
               </div>
             ) : (
@@ -254,7 +254,7 @@ export const InvestmentsView: React.FC = () => {
                   </Pie>
                   <Tooltip
                     formatter={(value: any) => [`${Number(value).toLocaleString()}원`, '평가금액']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc' }}
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -263,14 +263,14 @@ export const InvestmentsView: React.FC = () => {
 
           {/* Legend Grid */}
           {pieData.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-4 border-t border-slate-800">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-4 border-t border-slate-100">
               {pieData.map((item, idx) => {
                 const pct = totalInvestmentCurrentValue > 0 ? ((item.value / totalInvestmentCurrentValue) * 100).toFixed(1) : '0';
                 return (
                   <div key={idx} className="flex items-center space-x-2 text-xs">
                     <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
-                    <span className="text-slate-300 font-medium truncate">{item.name}</span>
-                    <span className="text-slate-500 text-[11px] ml-auto font-bold">{pct}%</span>
+                    <span className="text-slate-700 font-medium truncate">{item.name}</span>
+                    <span className="text-slate-400 text-[11px] ml-auto font-bold">{pct}%</span>
                   </div>
                 );
               })}
@@ -279,21 +279,21 @@ export const InvestmentsView: React.FC = () => {
         </div>
 
         {/* Bar Chart: Investment Principal vs Valuation */}
-        <div className="lg:col-span-5 rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-5 rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <h2 className="text-base font-bold text-white">원금 대비 평가금액 비교</h2>
-            <p className="text-xs text-slate-400">총 투자금 vs 현재 자산 가치</p>
+            <h2 className="text-base font-bold text-slate-900">원금 대비 평가금액 비교</h2>
+            <p className="text-xs text-slate-500">총 투자금 vs 현재 자산 가치</p>
           </div>
 
           <div className="h-56 w-full my-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v / 10000}만`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 12 }} />
+                <YAxis stroke="#64748b" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v / 10000}만`} />
                 <Tooltip
                   formatter={(value: any) => [`${Number(value).toLocaleString()}원`, '금액']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc' }}
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }}
                 />
                 <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
                   {barData.map((entry, index) => (
@@ -304,9 +304,9 @@ export const InvestmentsView: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          <div className="rounded-2xl bg-purple-950/60 p-3.5 border border-purple-800/60 flex items-center justify-between text-xs">
-            <span className="text-purple-300 font-medium">💡 총 투자 수익률</span>
-            <span className={`font-extrabold ${totalInvestmentReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <div className="rounded-2xl bg-purple-50 p-3.5 border border-purple-100 flex items-center justify-between text-xs">
+            <span className="text-purple-900 font-medium">💡 총 투자 수익률</span>
+            <span className={`font-extrabold ${totalInvestmentReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {totalInvestmentReturn >= 0 ? `+${totalInvestmentReturnPct.toFixed(2)}` : totalInvestmentReturnPct.toFixed(2)}%
             </span>
           </div>
@@ -315,36 +315,36 @@ export const InvestmentsView: React.FC = () => {
       </div>
 
       {/* Itemized Investment Table Section */}
-      <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs space-y-4">
+      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-white">상세 투자 종목 관리</h2>
-            <p className="text-xs text-slate-400">카테고리별 개별 주식, 코인, 펀드 현황 관리</p>
+            <h2 className="text-lg font-bold text-slate-900">상세 투자 종목 관리</h2>
+            <p className="text-xs text-slate-500">카테고리별 개별 주식, 코인, 펀드 현황 관리</p>
           </div>
 
           <div className="flex items-center space-x-2">
             {/* Sorting Dropdown Control */}
-            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-950 px-3 py-1.5 border border-slate-800 text-xs">
-              <ArrowUpDown className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-              <span className="text-slate-400 font-medium hidden sm:inline">정렬:</span>
+            <div className="flex items-center space-x-1.5 rounded-xl bg-slate-100 px-3 py-1.5 border border-slate-200 text-xs">
+              <ArrowUpDown className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+              <span className="text-slate-500 font-medium hidden sm:inline">정렬:</span>
               <select
                 value={invSortBy}
                 onChange={(e) => setInvSortBy(e.target.value as any)}
-                className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
               >
-                <option value="value_desc" className="bg-slate-900 text-white">평가금액 높은순 🔻</option>
-                <option value="value_asc" className="bg-slate-900 text-white">평가금액 낮은순 🔺</option>
-                <option value="return_desc" className="bg-slate-900 text-white">수익률 높은순 (%🔻)</option>
-                <option value="return_asc" className="bg-slate-900 text-white">수익률 낮은순 (%🔺)</option>
-                <option value="principal_desc" className="bg-slate-900 text-white">투자 원금 높은순</option>
-                <option value="name_asc" className="bg-slate-900 text-white">종목명 오름차순 (가-나-다)</option>
-                <option value="category" className="bg-slate-900 text-white">카테고리별 정렬</option>
+                <option value="value_desc">평가금액 높은순 🔻</option>
+                <option value="value_asc">평가금액 낮은순 🔺</option>
+                <option value="return_desc">수익률 높은순 (%🔻)</option>
+                <option value="return_asc">수익률 낮은순 (%🔺)</option>
+                <option value="principal_desc">투자 원금 높은순</option>
+                <option value="name_asc">종목명 오름차순 (가-나-다)</option>
+                <option value="category">카테고리별 정렬</option>
               </select>
             </div>
 
             <button
               onClick={openAddModal}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-600/30 transition-all shrink-0"
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-600/20 transition-all shrink-0"
             >
               <Plus className="h-4 w-4" />
               <span>새 투자 종목 추가</span>
@@ -353,15 +353,15 @@ export const InvestmentsView: React.FC = () => {
         </div>
 
         {sortedInvestmentItems.length === 0 ? (
-          <div className="py-12 text-center text-slate-500 text-xs rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-            <TrendingUp className="mx-auto h-10 w-10 text-slate-600 mb-1" />
-            <p className="font-semibold text-slate-300 text-sm">등록된 투자 종목이 없습니다.</p>
-            <p className="text-xs text-slate-500">주식, 코인, ETF, 펀드 등 보유 중인 투자 자산을 추가해 보세요!</p>
+          <div className="py-12 text-center text-slate-400 text-xs rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
+            <TrendingUp className="mx-auto h-10 w-10 text-slate-300 mb-1" />
+            <p className="font-semibold text-slate-600 text-sm">등록된 투자 종목이 없습니다.</p>
+            <p className="text-xs text-slate-400">주식, 코인, ETF, 펀드 등 보유 중인 투자 자산을 추가해 보세요!</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-200">
-              <thead className="bg-slate-950 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
+            <table className="w-full text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3">종목/투자명</th>
                   <th className="px-4 py-3">카테고리</th>
@@ -373,15 +373,15 @@ export const InvestmentsView: React.FC = () => {
                   <th className="px-4 py-3 text-center">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-slate-100">
                 {sortedInvestmentItems.map((item) => {
                   const retVal = item.currentValue - item.principalAmount;
                   const retPct = item.principalAmount > 0 ? (retVal / item.principalAmount) * 100 : 0;
                   const catObj = categories.find(c => c.id === item.categoryId);
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="px-4 py-3.5 font-bold text-white">
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-900">
                         <div>{item.name}</div>
                         {item.quantity && <div className="text-xs text-slate-400 font-normal">수량: {item.quantity.toLocaleString()}</div>}
                         {item.memo && <div className="text-xs text-slate-400 font-normal">{item.memo}</div>}
@@ -395,34 +395,34 @@ export const InvestmentsView: React.FC = () => {
                           <span>{item.categoryName}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-300 font-medium">
+                      <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">
                         {item.institution ? (
                           <span className="inline-flex items-center space-x-1">
-                            <Landmark className="h-3.5 w-3.5 text-slate-500" />
+                            <Landmark className="h-3.5 w-3.5 text-slate-400" />
                             <span>{item.institution}</span>
                           </span>
                         ) : (
                           '-'
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-right font-medium text-slate-300 text-sm">
+                      <td className="px-4 py-3.5 text-right font-medium text-slate-700 text-sm">
                         {item.principalAmount.toLocaleString()}원
                       </td>
-                      <td className="px-4 py-3.5 text-right font-extrabold text-white text-sm">
+                      <td className="px-4 py-3.5 text-right font-extrabold text-slate-900 text-sm">
                         {item.currentValue.toLocaleString()}원
                       </td>
                       <td className="px-4 py-3.5 text-right font-extrabold text-xs">
-                        <span className={retVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                        <span className={retVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                           {retVal >= 0 ? `+${retVal.toLocaleString()}` : retVal.toLocaleString()}원
                         </span>
-                        <div className={`text-[11px] font-bold ${retVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <div className={`text-[11px] font-bold ${retVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           ({retPct >= 0 ? `+${retPct.toFixed(2)}` : retPct.toFixed(2)}%)
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <button
                           onClick={() => handleLogToLedger(item)}
-                          className="inline-flex items-center space-x-1 rounded-xl bg-purple-950 px-3 py-1.5 text-xs font-bold text-purple-300 border border-purple-800 hover:bg-purple-600 hover:text-white transition-all shadow-2xs"
+                          className="inline-flex items-center space-x-1 rounded-xl bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-700 border border-purple-200 hover:bg-purple-600 hover:text-white transition-all shadow-2xs"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           <span>가계부 기록</span>
@@ -432,7 +432,7 @@ export const InvestmentsView: React.FC = () => {
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => openEditModal(item)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -442,7 +442,7 @@ export const InvestmentsView: React.FC = () => {
                                 deleteInvestmentItem(item.id);
                               }
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-all"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -459,19 +459,19 @@ export const InvestmentsView: React.FC = () => {
 
       {/* Investment Edit/Create Modal Dialog */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 p-6 border border-slate-800 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 border border-slate-200 shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">
               {editingItem ? '투자 종목 정보 수정' : '새 투자 종목 등록'}
             </h3>
 
             <form onSubmit={handleSaveInvestment} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">투자 카테고리</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">투자 카테고리</label>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none"
                 >
                   {investmentCategories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -482,19 +482,19 @@ export const InvestmentsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">종목 / 투자 자산명</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">종목 / 투자 자산명</label>
                 <input
                   type="text"
                   required
                   placeholder="예: 삼성전자, 비트코인, TIGER 미국S&P500"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">증권사 / 거래소 선택</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">증권사 / 거래소 선택</label>
                 <div className="space-y-2">
                   <select
                     value={COMMON_FINANCIAL_INSTITUTIONS.includes(institution) ? institution : 'custom'}
@@ -505,7 +505,7 @@ export const InvestmentsView: React.FC = () => {
                         setInstitution('');
                       }
                     }}
-                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none"
                   >
                     <option value="">-- 증권사/거래소 목록 선택 --</option>
                     {COMMON_FINANCIAL_INSTITUTIONS.map((inst) => (
@@ -522,7 +522,7 @@ export const InvestmentsView: React.FC = () => {
                       placeholder="증권사/거래소 이름을 직접 입력"
                       value={institution}
                       onChange={(e) => setInstitution(e.target.value)}
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                      className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none"
                     />
                   )}
                 </div>
@@ -530,49 +530,49 @@ export const InvestmentsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">투자 원금 (원)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">투자 원금 (원)</label>
                   <input
                     type="number"
                     required
                     placeholder="예: 1000000"
                     value={principalAmount}
                     onChange={(e) => setPrincipalAmount(e.target.value)}
-                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none font-mono"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">현재 평가금액 (원)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">현재 평가금액 (원)</label>
                   <input
                     type="number"
                     required
                     placeholder="예: 1250000"
                     value={currentValue}
                     onChange={(e) => setCurrentValue(e.target.value)}
-                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none font-mono"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">보유 수량 (선택)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">보유 수량 (선택)</label>
                   <input
                     type="number"
                     step="any"
                     placeholder="예: 15 주, 0.05 개"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none font-mono"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">메모 (선택)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">메모 (선택)</label>
                   <input
                     type="text"
                     placeholder="예: ISA 계좌, 장기투자"
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
-                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none"
                   />
                 </div>
               </div>
@@ -581,13 +581,13 @@ export const InvestmentsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 shadow-md shadow-purple-600/30"
+                  className="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
                 >
                   저장하기
                 </button>

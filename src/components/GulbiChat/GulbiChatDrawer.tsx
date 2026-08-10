@@ -74,46 +74,46 @@ export const GulbiChatDrawer: React.FC<GulbiChatDrawerProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs">
+      <div className="w-full max-w-lg bg-white border-l border-slate-200 flex flex-col h-full shadow-2xl">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white">
           <div className="flex items-center space-x-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/20">
               <Bot className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="font-bold text-white text-base">Gulbi AI 멘토 1:1 상담소</h2>
-                <span className="rounded-full bg-emerald-950 px-2 py-0.5 text-[10px] font-extrabold text-emerald-400 border border-emerald-800">
+                <h2 className="font-bold text-slate-900 text-base">Gulbi AI 멘토 1:1 상담소</h2>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700">
                   Online
                 </span>
               </div>
-              <p className="text-xs text-slate-400">자산 증액 가이드 & 소비 진단</p>
+              <p className="text-xs text-slate-500">자산 증액 가이드 & 소비 진단</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Quick Diagnostic Strip */}
-        <div className="bg-indigo-950/60 p-4 border-b border-slate-800 flex items-center justify-between text-xs">
+        <div className="bg-indigo-50 p-4 border-b border-slate-200 flex items-center justify-between text-xs">
           <div>
-            <span className="text-slate-400">8월 재무 건강도: </span>
-            <strong className="text-indigo-300 text-sm">{gulbiAdvice.healthScore}점</strong>
+            <span className="text-slate-600">8월 재무 건강도: </span>
+            <strong className="text-indigo-900 text-sm">{gulbiAdvice.healthScore}점</strong>
           </div>
-          <div className="text-slate-400">
-            일일 안전 지출: <strong className="text-amber-400 font-extrabold">{gulbiAdvice.dailyTargetBudget.toLocaleString()}원</strong>
+          <div className="text-slate-600">
+            일일 안전 지출: <strong className="text-amber-600 font-extrabold">{gulbiAdvice.dailyTargetBudget.toLocaleString()}원</strong>
           </div>
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -123,40 +123,40 @@ export const GulbiChatDrawer: React.FC<GulbiChatDrawerProps> = ({ isOpen, onClos
                 className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
                   msg.sender === 'user'
                     ? 'bg-indigo-600 text-white rounded-br-none shadow-xs font-medium'
-                    : 'bg-slate-900 text-slate-100 border border-slate-800 shadow-xs rounded-bl-none font-medium'
+                    : 'bg-white text-slate-800 border border-slate-200/80 shadow-xs rounded-bl-none font-medium'
                 }`}
               >
                 {msg.text}
               </div>
-              <span className="mt-1 text-[10px] text-slate-500 px-1">{msg.timestamp}</span>
+              <span className="mt-1 text-[10px] text-slate-400 px-1">{msg.timestamp}</span>
             </div>
           ))}
         </div>
 
         {/* Suggested Quick Questions */}
-        <div className="p-3 border-t border-slate-800 bg-slate-900 overflow-x-auto flex space-x-2">
+        <div className="p-3 border-t border-slate-200 bg-white overflow-x-auto flex space-x-2">
           <button
             onClick={() => handleSendMessage('이번 달 목표 달성 가능할까?')}
-            className="whitespace-nowrap rounded-xl bg-slate-950 px-3 py-1.5 text-xs text-indigo-300 font-semibold hover:bg-indigo-600 hover:text-white border border-slate-800 transition-all"
+            className="whitespace-nowrap rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-indigo-700 font-semibold hover:bg-indigo-600 hover:text-white border border-slate-200 transition-all"
           >
             🎯 목표 달성 가능성?
           </button>
           <button
             onClick={() => handleSendMessage('지출 아끼는 팁 알려줘')}
-            className="whitespace-nowrap rounded-xl bg-slate-950 px-3 py-1.5 text-xs text-rose-300 font-semibold hover:bg-rose-600 hover:text-white border border-slate-800 transition-all"
+            className="whitespace-nowrap rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-rose-700 font-semibold hover:bg-rose-600 hover:text-white border border-slate-200 transition-all"
           >
             📊 지출 절약 팁?
           </button>
           <button
             onClick={() => handleSendMessage('순자산 현황 알려줘')}
-            className="whitespace-nowrap rounded-xl bg-slate-950 px-3 py-1.5 text-xs text-emerald-300 font-semibold hover:bg-emerald-600 hover:text-white border border-slate-800 transition-all"
+            className="whitespace-nowrap rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-emerald-700 font-semibold hover:bg-emerald-600 hover:text-white border border-slate-200 transition-all"
           >
             💰 전체 순자산 요약
           </button>
         </div>
 
         {/* Input Bar */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900">
+        <div className="p-4 border-t border-slate-200 bg-white">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -169,7 +169,7 @@ export const GulbiChatDrawer: React.FC<GulbiChatDrawerProps> = ({ isOpen, onClos
               placeholder="Gulbi 멘토에게 금융 질의 입력..."
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:border-amber-500 focus:outline-none"
+              className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:outline-none"
             />
             <button
               type="submit"
