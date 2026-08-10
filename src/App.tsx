@@ -31,9 +31,17 @@ function getStoredUsername(): string | null {
 export const AppContent: React.FC<{ currentUsername: string; onLogout: () => void }> = ({ currentUsername, onLogout }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCategoryUnlocked, setIsCategoryUnlocked] = useState<boolean>(() => {
+    return sessionStorage.getItem(`gulbi_cat_unlocked_${currentUsername}`) === 'true';
+  });
+
+  const handleUnlockCategory = () => {
+    sessionStorage.setItem(`gulbi_cat_unlocked_${currentUsername}`, 'true');
+    setIsCategoryUnlocked(true);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-500 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white flex flex-col">
       {/* Top Sticky Header & Navigation */}
       <Header
         activeTab={activeTab}
@@ -41,6 +49,8 @@ export const AppContent: React.FC<{ currentUsername: string; onLogout: () => voi
         openChat={() => setIsChatOpen(true)}
         onLogout={onLogout}
         currentUsername={currentUsername}
+        isCategoryUnlocked={isCategoryUnlocked}
+        onUnlockCategory={handleUnlockCategory}
       />
 
       {/* Main Content Body */}
@@ -50,17 +60,22 @@ export const AppContent: React.FC<{ currentUsername: string; onLogout: () => voi
         {activeTab === 'goal' && <GoalTrackerView />}
         {activeTab === 'fixed-expenses' && <FixedExpensesView />}
         {activeTab === 'ledger' && <LedgerView />}
-        {activeTab === 'categories' && <CategoryManagerView />}
+        {activeTab === 'categories' && (
+          <CategoryManagerView
+            isUnlocked={isCategoryUnlocked}
+            onUnlock={handleUnlockCategory}
+          />
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-800/80 bg-slate-900/90 py-6 text-center text-xs text-slate-400">
         <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <span className="font-bold text-slate-700">Gulbi (굴비) AI</span>
+            <span className="font-bold text-slate-200">Gulbi (굴비) AI</span>
             <span>· 계정별 데이터 격리 가계부 & 자산/투자 관리 에이전트</span>
           </div>
-          <p className="text-slate-400">© 2026 Gulbi Financial Agent. All rights reserved.</p>
+          <p className="text-slate-500">© 2026 Gulbi Financial Agent. All rights reserved.</p>
         </div>
       </footer>
 

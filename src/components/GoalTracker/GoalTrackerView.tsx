@@ -26,7 +26,6 @@ export const GoalTrackerView: React.FC = () => {
     remainingVariableBudgetBeforeToday,
     todayAvailableBudget,
     categories,
-    transactions,
   } = useFinancial();
 
   // Goal Edit Modal State
@@ -107,10 +106,6 @@ export const GoalTrackerView: React.FC = () => {
   };
 
   const incomeCategories = categories.filter(c => c.type === 'income');
-  const expenseCategories = categories.filter(c => c.type === 'expense');
-  const currentMonthYM = goal.yearMonth || '2026-08';
-  const monthExpenseTxList = transactions.filter(t => t.type === 'expense' && t.date.startsWith(currentMonthYM));
-
   const remainingToTarget = Math.max(goal.targetIncreaseAmount - currentMonthNetSaving, 0);
   const isGoalAchieved = goal.targetIncreaseAmount > 0 && currentMonthNetSaving >= goal.targetIncreaseAmount;
 
@@ -126,25 +121,25 @@ export const GoalTrackerView: React.FC = () => {
       )}
 
       {/* Main Goal Hero Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-sky-900 p-6 sm:p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-900 to-sky-950 p-6 sm:p-8 text-white border border-slate-800 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center space-x-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-indigo-100 backdrop-blur-md">
+              <span className="inline-flex items-center space-x-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-200 backdrop-blur-md border border-white/10">
                 <Target className="h-3.5 w-3.5" />
                 <span>{goal.yearMonth} 목표 관리</span>
               </span>
-              <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-500/20 border border-emerald-300/30 px-3 py-1 text-xs font-bold text-emerald-200">
+              <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-bold text-emerald-300">
                 <DollarSign className="h-3.5 w-3.5" />
                 <span>총 예상 수입: {expectedMonthlyIncome > 0 ? `${expectedMonthlyIncome.toLocaleString()}원` : '미설정'}</span>
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              이번 달 자산 <span className="text-amber-300">+{goal.targetIncreaseAmount.toLocaleString()}원</span> 증액 도전!
+              이번 달 자산 <span className="text-amber-400">+{goal.targetIncreaseAmount.toLocaleString()}원</span> 증액 도전!
             </h1>
-            <p className="text-xs sm:text-sm text-indigo-100">
+            <p className="text-xs sm:text-sm text-indigo-200">
               {goal.note || '지출을 아끼고 수입을 모아 이번 달 자산을 단단하게 불려나가세요.'}
             </p>
           </div>
@@ -155,7 +150,7 @@ export const GoalTrackerView: React.FC = () => {
               setNoteInput(goal.note || '');
               setIsGoalModalOpen(true);
             }}
-            className="inline-flex items-center justify-center space-x-2 rounded-2xl bg-white text-indigo-900 px-5 py-3 text-sm font-bold hover:bg-indigo-50 shadow-lg shadow-black/10 transition-all shrink-0"
+            className="inline-flex items-center justify-center space-x-2 rounded-2xl bg-white text-indigo-950 px-5 py-3 text-sm font-bold hover:bg-indigo-50 shadow-lg transition-all shrink-0"
           >
             <Edit3 className="h-4 w-4 text-indigo-600" />
             <span>증액 목표 금액 수정</span>
@@ -165,13 +160,13 @@ export const GoalTrackerView: React.FC = () => {
         {/* Progress Bar Gauge */}
         <div className="mt-8 space-y-3">
           <div className="flex items-center justify-between text-xs sm:text-sm font-semibold">
-            <span className="text-indigo-100">
+            <span className="text-indigo-200">
               현재 자산 순증액: <strong className="text-emerald-300 text-base">{currentMonthNetSaving.toLocaleString()}원</strong>
             </span>
-            <span className="text-amber-300 text-base font-extrabold">{monthlyGoalProgress}% 달성</span>
+            <span className="text-amber-400 text-base font-extrabold">{monthlyGoalProgress}% 달성</span>
           </div>
 
-          <div className="h-5 w-full rounded-full bg-indigo-950/60 p-1 border border-indigo-700/50">
+          <div className="h-5 w-full rounded-full bg-slate-950/80 p-1 border border-indigo-900/60">
             <div
               className={`h-full rounded-full transition-all duration-700 ${
                 isGoalAchieved
@@ -204,25 +199,25 @@ export const GoalTrackerView: React.FC = () => {
       </div>
 
       {/* Itemized Expected Income Section */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
+      <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/30">
               <Wallet className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">매달 예상 수입 세부 항목 관리</h2>
-              <p className="text-xs text-slate-500">월급, 상여금, 투자수익, 부수입 등을 나눠서 예상 수입 등록</p>
+              <h2 className="text-lg font-bold text-white">매달 예상 수입 세부 항목 관리</h2>
+              <p className="text-xs text-slate-400">월급, 상여금, 투자수익, 부수입 등을 나눠서 예상 수입 등록</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
-            <span className="text-xs font-bold text-slate-600">
-              합계: <strong className="text-emerald-600 text-base">{expectedMonthlyIncome.toLocaleString()}원</strong>
+            <span className="text-xs font-bold text-slate-300">
+              합계: <strong className="text-emerald-400 text-base">{expectedMonthlyIncome.toLocaleString()}원</strong>
             </span>
             <button
               onClick={openAddIncomeModal}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition-all shrink-0"
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/30 transition-all shrink-0"
             >
               <Plus className="h-4 w-4" />
               <span>예상 수입 항목 추가</span>
@@ -231,15 +226,15 @@ export const GoalTrackerView: React.FC = () => {
         </div>
 
         {expectedIncomeItems.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-xs rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
-            <DollarSign className="mx-auto h-8 w-8 text-slate-300 mb-1" />
-            <p className="font-semibold text-slate-600 text-sm">등록된 예상 수입 항목이 없습니다.</p>
-            <p className="text-xs text-slate-400">월급, 보너스, 투자 배당금, 부수입 항목을 구분하여 등록해 보세요!</p>
+          <div className="py-8 text-center text-slate-500 text-xs rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+            <DollarSign className="mx-auto h-8 w-8 text-slate-600 mb-1" />
+            <p className="font-semibold text-slate-300 text-sm">등록된 예상 수입 항목이 없습니다.</p>
+            <p className="text-xs text-slate-500">월급, 보너스, 투자 배당금, 부수입 항목을 구분하여 등록해 보세요!</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-700">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+            <table className="w-full text-left text-sm text-slate-200">
+              <thead className="bg-slate-950 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
                 <tr>
                   <th className="px-4 py-3">수입 항목명</th>
                   <th className="px-4 py-3">구분 카테고리</th>
@@ -248,13 +243,13 @@ export const GoalTrackerView: React.FC = () => {
                   <th className="px-4 py-3 text-center">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-800/80">
                 {expectedIncomeItems.map((item) => {
                   const catObj = categories.find(c => c.id === item.categoryId);
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3.5 font-bold text-slate-900">
+                    <tr key={item.id} className="hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-white">
                         <div>{item.name}</div>
                         {item.memo && <div className="text-xs text-slate-400 font-normal">{item.memo}</div>}
                       </td>
@@ -267,13 +262,13 @@ export const GoalTrackerView: React.FC = () => {
                           <span>{item.categoryName}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-right font-extrabold text-emerald-600 text-sm">
+                      <td className="px-4 py-3.5 text-right font-extrabold text-emerald-400 text-sm">
                         +{item.amount.toLocaleString()}원
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <button
                           onClick={() => handleLogIncomeToLedger(item)}
-                          className="inline-flex items-center space-x-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs"
+                          className="inline-flex items-center space-x-1 rounded-xl bg-emerald-950 px-3 py-1.5 text-xs font-bold text-emerald-300 border border-emerald-800 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           <span>실제 수입 장부 기록</span>
@@ -283,7 +278,7 @@ export const GoalTrackerView: React.FC = () => {
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => openEditIncomeModal(item)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all"
+                            className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -293,7 +288,7 @@ export const GoalTrackerView: React.FC = () => {
                                 deleteExpectedIncomeItem(item.id);
                               }
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-all"
+                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -312,37 +307,37 @@ export const GoalTrackerView: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         
         {/* Daily Safe Spending Budget */}
-        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-950/80 text-amber-400 border border-amber-800/60">
                 <Calendar className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-base">일일 권장 지출 예산</h3>
-                <p className="text-xs text-slate-500">목표 달성을 위한 남은 일수 기준 하루 지출 한도</p>
+                <h3 className="font-bold text-white text-base">일일 권장 지출 예산</h3>
+                <p className="text-xs text-slate-400">목표 달성을 위한 남은 일수 기준 하루 지출 한도</p>
               </div>
             </div>
-            <span className="rounded-xl bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 border border-amber-200">
+            <span className="rounded-xl bg-amber-950 px-3 py-1 text-xs font-bold text-amber-400 border border-amber-800">
               남은 {gulbiAdvice.currentDaysLeft}일
             </span>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200/80 text-center space-y-1">
-            <span className="text-xs font-medium text-slate-500">오늘부터 하루 평균 안전 가용 지출</span>
-            <div className="text-3xl font-extrabold text-amber-600 tracking-tight">
-              {gulbiAdvice.dailyTargetBudget.toLocaleString()} <span className="text-base font-normal text-slate-600">원 / 일</span>
+          <div className="rounded-2xl bg-slate-950 p-5 border border-slate-800 text-center space-y-1">
+            <span className="text-xs font-medium text-slate-400">오늘부터 하루 평균 안전 가용 지출</span>
+            <div className="text-3xl font-extrabold text-amber-400 tracking-tight">
+              {gulbiAdvice.dailyTargetBudget.toLocaleString()} <span className="text-base font-normal text-slate-400">원 / 일</span>
             </div>
           </div>
 
           {/* Today's Real-Time Available Budget Box */}
-          <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 p-4 border border-amber-200/90 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+          <div className="rounded-2xl bg-gradient-to-r from-amber-950/70 to-orange-950/70 p-4 border border-amber-800/80 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-amber-300">
               <span className="flex items-center space-x-1.5">
-                <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
+                <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
                 <span>오늘 실시간 당일 가용 잔여 예산</span>
               </span>
-              <span className="text-[11px] text-amber-800 font-bold bg-amber-200/60 px-2 py-0.5 rounded-md">
+              <span className="text-[11px] text-amber-200 font-bold bg-amber-900/80 px-2 py-0.5 rounded-md border border-amber-700/60">
                 오늘 지출: {todayVariableExpenseSpent.toLocaleString()}원
               </span>
             </div>
@@ -350,92 +345,92 @@ export const GoalTrackerView: React.FC = () => {
             <div className="flex items-baseline justify-between pt-1">
               <div className="text-2xl font-extrabold tracking-tight">
                 {todayAvailableBudget >= 0 ? (
-                  <span className="text-emerald-600">
-                    +{todayAvailableBudget.toLocaleString()} <span className="text-sm font-normal text-slate-600">원 남음</span>
+                  <span className="text-emerald-400">
+                    +{todayAvailableBudget.toLocaleString()} <span className="text-sm font-normal text-slate-400">원 남음</span>
                   </span>
                 ) : (
-                  <span className="text-rose-600">
-                    -{Math.abs(todayAvailableBudget).toLocaleString()} <span className="text-sm font-normal text-slate-600">원 초과!</span>
+                  <span className="text-rose-400">
+                    -{Math.abs(todayAvailableBudget).toLocaleString()} <span className="text-sm font-normal text-slate-400">원 초과!</span>
                   </span>
                 )}
               </div>
               <span
                 className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
                   todayAvailableBudget >= 0
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                    : 'bg-rose-100 text-rose-800 border-rose-200 animate-pulse'
+                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                    : 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse'
                 }`}
               >
                 {todayAvailableBudget >= 0 ? '오늘 소비 안전 🟢' : '오늘 예산 초과 🔴'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-400">
               일일 권장 지출({gulbiAdvice.dailyTargetBudget.toLocaleString()}원) - 오늘 실제 지출({todayVariableExpenseSpent.toLocaleString()}원) = 오늘 추가 사용 가능 금액
             </p>
           </div>
 
-          <div className="text-xs text-slate-600 space-y-1.5 pt-1">
+          <div className="text-xs text-slate-300 space-y-1.5 pt-1">
             <div className="flex justify-between">
-              <span>매월 예상 수입 합계:</span>
-              <span className="font-semibold text-slate-900">{expectedMonthlyIncome.toLocaleString()}원</span>
+              <span className="text-slate-400">매월 예상 수입 합계:</span>
+              <span className="font-semibold text-white">{expectedMonthlyIncome.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between text-emerald-600">
+            <div className="flex justify-between text-emerald-400">
               <span>장부 수입 (실제 입금):</span>
               <span className="font-semibold">+{currentMonthIncome.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between text-indigo-600">
+            <div className="flex justify-between text-indigo-400">
               <span>차감: 목표 자산 증액분:</span>
               <span className="font-semibold">-{goal.targetIncreaseAmount.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between text-rose-600">
+            <div className="flex justify-between text-rose-400">
               <span>차감: 매월 고정지출 보존분:</span>
               <span className="font-semibold">-{totalFixedExpenseAmount.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-800">
+            <div className="flex justify-between border-t border-slate-800 pt-1 font-semibold text-slate-300">
               <span>= 초기 월 변동지출 예산:</span>
-              <span className="text-slate-900 font-bold">{initialVariableBudget.toLocaleString()}원</span>
+              <span className="text-white font-bold">{initialVariableBudget.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between text-slate-500">
+            <div className="flex justify-between text-slate-400">
               <span>차감: 어제까지 누적 변동지출:</span>
-              <span className="font-semibold text-slate-700">-{pastVariableExpenseSpent.toLocaleString()}원</span>
+              <span className="font-semibold text-slate-300">-{pastVariableExpenseSpent.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between font-semibold text-slate-800">
+            <div className="flex justify-between font-semibold text-slate-200">
               <span>= 오늘 아침 시작 기준 가용 예산:</span>
-              <span className="text-indigo-700 font-bold">{remainingVariableBudgetBeforeToday.toLocaleString()}원</span>
+              <span className="text-indigo-400 font-bold">{remainingVariableBudgetBeforeToday.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between text-amber-700 font-semibold">
+            <div className="flex justify-between text-amber-400 font-semibold">
               <span>➔ 오늘 하루 평균 권장 예산 ({gulbiAdvice.currentDaysLeft}일 분할):</span>
               <span className="font-bold">{gulbiAdvice.dailyTargetBudget.toLocaleString()}원 / 일</span>
             </div>
-            <div className="flex justify-between text-rose-600">
+            <div className="flex justify-between text-rose-400">
               <span>차감: 오늘 실제 지출한 금액:</span>
               <span className="font-semibold">-{todayVariableExpenseSpent.toLocaleString()}원</span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold text-slate-900 text-sm">
+            <div className="flex justify-between border-t border-slate-800 pt-1.5 font-bold text-white text-sm">
               <span>= 오늘 남은 당일 가용 잔여 예산:</span>
-              <span className={todayAvailableBudget >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+              <span className={todayAvailableBudget >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                 {todayAvailableBudget >= 0 ? `+${todayAvailableBudget.toLocaleString()}원` : `${todayAvailableBudget.toLocaleString()}원`}
               </span>
             </div>
-            <div className="flex justify-between border-t border-slate-200/80 pt-2 text-[11px] text-slate-500">
-              <span>이번 달 누적 변동지출 총액: <strong className="text-slate-700">{pureVariableExpenseSpent.toLocaleString()}원</strong></span>
-              <span>월말까지 총 남은 가용 예산: <strong className={remainingVariableBudget >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{remainingVariableBudget.toLocaleString()}원</strong></span>
+            <div className="flex justify-between border-t border-slate-800 pt-2 text-[11px] text-slate-400">
+              <span>이번 달 누적 변동지출 총액: <strong className="text-slate-200">{pureVariableExpenseSpent.toLocaleString()}원</strong></span>
+              <span>월말까지 총 남은 가용 예산: <strong className={remainingVariableBudget >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{remainingVariableBudget.toLocaleString()}원</strong></span>
             </div>
           </div>
         </div>
 
         {/* Spending Pace Status */}
-        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4 flex flex-col justify-between">
+        <div className="rounded-3xl bg-slate-900 p-6 border border-slate-800/90 shadow-xs space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
                     gulbiAdvice.spendingPace === 'safe'
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                      ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
                       : gulbiAdvice.spendingPace === 'caution'
-                      ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                      : 'bg-rose-50 text-rose-600 border border-rose-100'
+                      ? 'bg-amber-950/80 text-amber-400 border border-amber-800/60'
+                      : 'bg-rose-950/80 text-rose-400 border border-rose-800/60'
                   }`}
                 >
                   {gulbiAdvice.spendingPace === 'safe' ? (
@@ -445,28 +440,30 @@ export const GoalTrackerView: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">소비 페이스 진단</h3>
-                  <p className="text-xs text-slate-500">지출 속도 및 재무 건강도 점수</p>
+                  <h3 className="font-bold text-white text-base">소비 페이스 진단</h3>
+                  <p className="text-xs text-slate-400">지출 속도 및 재무 건강도 점수</p>
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-extrabold text-slate-900">{gulbiAdvice.healthScore}</span>
-                <span className="text-xs text-slate-400"> / 100점</span>
+                <span className="text-2xl font-extrabold text-white">{gulbiAdvice.healthScore}</span>
+                <span className="text-xs text-slate-500"> / 100점</span>
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl bg-slate-50 p-4 border border-slate-200/80 flex items-center space-x-3">
+            <div className="mt-6 rounded-2xl bg-slate-950 p-4 border border-slate-800 flex items-center space-x-3">
               <span className="text-2xl">🐟</span>
-              <p className="text-sm font-semibold text-slate-800">{gulbiAdvice.statusMessage}</p>
+              <p className="text-xs font-semibold text-slate-200 leading-relaxed">
+                {gulbiAdvice.statusMessage}
+              </p>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-indigo-50 p-3.5 border border-indigo-100 space-y-1">
-            <span className="text-xs font-bold text-indigo-700 flex items-center space-x-1">
-              <Flame className="h-3.5 w-3.5 text-amber-500" />
+          <div className="rounded-2xl bg-indigo-950/50 p-4 border border-indigo-800/50 space-y-2">
+            <div className="flex items-center space-x-1 text-xs font-bold text-indigo-300">
+              <Flame className="h-4 w-4 text-amber-400" />
               <span>Gulbi 꿀팁</span>
-            </span>
-            <p className="text-xs text-slate-700">
+            </div>
+            <p className="text-xs text-indigo-200/90 leading-relaxed">
               배달음식이나 커피 지출을 하루 10,000원씩만 아끼면, 한 달에 30만원이 추가로 저축되어 목표를 더 빠르게 달성할 수 있습니다!
             </p>
           </div>
@@ -474,126 +471,33 @@ export const GoalTrackerView: React.FC = () => {
 
       </div>
 
-      {/* Gulbi AI Financial Recommendations Card */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/20">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Gulbi AI 맞춤형 분석 & 피드백</h2>
-            <p className="text-xs text-slate-500">이번 달 수입, 지출, 증액 추이 종합 평가</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {gulbiAdvice.adviceList.map((adv, idx) => (
-            <div key={idx} className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 text-xs text-slate-700 leading-relaxed flex items-start space-x-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-extrabold text-indigo-700 text-xs">
-                {idx + 1}
-              </span>
-              <span className="font-medium text-slate-800">{adv}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Category Budget Usage Monitor */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">카테고리별 예산 한도 대비 소비 현황</h2>
-            <p className="text-xs text-slate-500">지출 카테고리별 예산 준수 여부 점검</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {expenseCategories.map((cat) => {
-            const spent = monthExpenseTxList
-              .filter(t => t.categoryId === cat.id)
-              .reduce((sum, t) => sum + t.amount, 0);
-            
-            const budget = cat.monthlyBudget || 0;
-            const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0;
-            const isOver = budget > 0 && spent > budget;
-
-            return (
-              <div key={cat.id} className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }}></span>
-                    <span className="font-bold text-slate-900">{cat.name}</span>
-                  </div>
-                  <div className="text-slate-500">
-                    <strong className={isOver ? 'text-rose-600' : 'text-slate-900'}>{spent.toLocaleString()}원</strong>
-                    {budget > 0 ? <span> / {budget.toLocaleString()}원</span> : <span> (예산 미설정)</span>}
-                  </div>
-                </div>
-
-                {budget > 0 && (
-                  <div className="space-y-1">
-                    <div className="h-2 w-full rounded-full bg-slate-200">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          isOver ? 'bg-rose-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${pct}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-[11px] text-slate-500">
-                      <span>사용률 {pct}%</span>
-                      {isOver ? (
-                        <span className="text-rose-600 font-bold">{(spent - budget).toLocaleString()}원 초과!</span>
-                      ) : (
-                        <span>{(budget - spent).toLocaleString()}원 남음</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Goal Edit Modal Dialog */}
       {isGoalModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 border border-slate-200 shadow-2xl space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white font-bold">
-                <Target className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">목표 자산 증액 설정</h3>
-                <p className="text-xs text-slate-500">{goal.yearMonth} 달성 플랜 수정</p>
-              </div>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 p-6 border border-slate-800 shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-white">이번 달 자산 증액 목표 수정</h3>
 
             <form onSubmit={handleSaveGoal} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">목표 자산 증액분 (원)</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">목표 자산 증액 금액 (원)</label>
                 <input
                   type="number"
                   required
-                  placeholder="예: 1500000"
+                  placeholder="예: 2000000"
                   value={targetAmountInput}
                   onChange={(e) => setTargetAmountInput(e.target.value)}
-                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none font-mono"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  💡 수입 중 이번 달에 순자산으로 저축/불리고 싶은 목표 금액을 입력하세요.
-                </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">목표 각오 / 메모</label>
-                <textarea
-                  rows={3}
-                  placeholder="예: 이번 달은 외식 줄이고 적금에 집중하기!"
+                <label className="block text-xs font-semibold text-slate-300 mb-1">다짐 / 메모 (선택)</label>
+                <input
+                  type="text"
+                  placeholder="예: 불필요한 배달 음식 줄이기!"
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
-                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -601,15 +505,15 @@ export const GoalTrackerView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsGoalModalOpen(false)}
-                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20"
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/30"
                 >
-                  목표 저장하기
+                  목표 저장
                 </button>
               </div>
             </form>
@@ -617,64 +521,62 @@ export const GoalTrackerView: React.FC = () => {
         </div>
       )}
 
-      {/* Expected Income Item Modal Dialog */}
+      {/* Expected Income Item Edit/Create Modal Dialog */}
       {isIncomeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 border border-slate-200 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 p-6 border border-slate-800 shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-white">
               {editingIncomeItem ? '예상 수입 항목 수정' : '새 예상 수입 항목 추가'}
             </h3>
 
             <form onSubmit={handleSaveIncomeItem} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">예상 수입 항목명</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="예: 기본 월급, 분기 상여금, 주식 배당금, 부업 수입"
-                  value={incomeName}
-                  onChange={(e) => setIncomeName(e.target.value)}
-                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">수입 카테고리</label>
-                  <select
-                    value={incomeCategoryId}
-                    onChange={(e) => setIncomeCategoryId(e.target.value)}
-                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none"
-                  >
-                    {incomeCategories.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">예상 금액 (원)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="예: 3500000"
-                    value={incomeAmount}
-                    onChange={(e) => setIncomeAmount(e.target.value)}
-                    className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none"
-                  />
-                </div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">수입 카테고리</label>
+                <select
+                  value={incomeCategoryId}
+                  onChange={(e) => setIncomeCategoryId(e.target.value)}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                >
+                  {incomeCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">메모 (선택)</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">수입 항목명</label>
                 <input
                   type="text"
-                  placeholder="예: 매월 25일 지급"
+                  required
+                  placeholder="예: 8월 기본급, 분기 성과급, 중고거래 판매"
+                  value={incomeName}
+                  onChange={(e) => setIncomeName(e.target.value)}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">예상 수입 금액 (원)</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="예: 3500000"
+                  value={incomeAmount}
+                  onChange={(e) => setIncomeAmount(e.target.value)}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">메모 (선택)</label>
+                <input
+                  type="text"
+                  placeholder="예: 25일 급여일 입금 예정"
                   value={incomeMemo}
                   onChange={(e) => setIncomeMemo(e.target.value)}
-                  className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -682,13 +584,13 @@ export const GoalTrackerView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsIncomeModalOpen(false)}
-                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20"
+                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/30"
                 >
                   저장하기
                 </button>
