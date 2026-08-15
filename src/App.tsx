@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FinancialProvider } from './context/FinancialContext';
+import { FinancialProvider, useFinancial } from './context/FinancialContext';
 import { Header, type ActiveTab } from './components/Header';
 import { DashboardView } from './components/Dashboard/DashboardView';
 import { InvestmentsView } from './components/Investments/InvestmentsView';
@@ -9,6 +9,7 @@ import { LedgerView } from './components/Ledger/LedgerView';
 import { CategoryManagerView } from './components/CategoryManager/CategoryManagerView';
 import { GulbiChatDrawer } from './components/GulbiChat/GulbiChatDrawer';
 import { LoginView } from './components/Auth/LoginView';
+import { SupabaseSyncModal } from './components/SupabaseSyncModal';
 
 function getStoredUsername(): string | null {
   try {
@@ -34,6 +35,14 @@ export const AppContent: React.FC<{ currentUsername: string; onLogout: () => voi
   const [isCategoryUnlocked, setIsCategoryUnlocked] = useState<boolean>(() => {
     return sessionStorage.getItem(`gulbi_cat_unlocked_${currentUsername}`) === 'true';
   });
+
+  const {
+    isSupabaseModalOpen,
+    closeSupabaseModal,
+    supabaseSyncStatus,
+    supabaseLastSyncedAt,
+    syncNowWithSupabase,
+  } = useFinancial();
 
   const handleUnlockCategory = () => {
     sessionStorage.setItem(`gulbi_cat_unlocked_${currentUsername}`, 'true');
@@ -81,6 +90,16 @@ export const AppContent: React.FC<{ currentUsername: string; onLogout: () => voi
 
       {/* Gulbi AI Mascot Chat Drawer */}
       <GulbiChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
+      {/* Supabase Cloud DB Connection & Sync Settings Modal */}
+      <SupabaseSyncModal
+        isOpen={isSupabaseModalOpen}
+        onClose={closeSupabaseModal}
+        onSyncNow={syncNowWithSupabase}
+        syncStatus={supabaseSyncStatus}
+        lastSyncedAt={supabaseLastSyncedAt}
+        currentUsername={currentUsername}
+      />
     </div>
   );
 };

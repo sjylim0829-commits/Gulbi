@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { LayoutDashboard, Target, Calendar, ReceiptText, Tags, Bot, Sparkles, Download, Upload, Trash2, LogOut, UserCheck, TrendingUp, Lock, Unlock, KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Target, Calendar, ReceiptText, Tags, Bot, Sparkles, Download, Upload, Trash2, LogOut, UserCheck, TrendingUp, Lock, Unlock, KeyRound, Eye, EyeOff, ShieldCheck, Database } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
 export type ActiveTab = 'dashboard' | 'goal' | 'fixed-expenses' | 'investments' | 'ledger' | 'categories';
@@ -23,7 +23,15 @@ export const Header: React.FC<HeaderProps> = ({
   isCategoryUnlocked = false,
   onUnlockCategory,
 }) => {
-  const { netWorth, gulbiAdvice, clearAllData, exportBackupJSON, importBackupJSON } = useFinancial();
+  const {
+    netWorth,
+    gulbiAdvice,
+    clearAllData,
+    exportBackupJSON,
+    importBackupJSON,
+    supabaseSyncStatus,
+    openSupabaseModal,
+  } = useFinancial();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Admin Password Modal State
@@ -197,6 +205,27 @@ export const Header: React.FC<HeaderProps> = ({
             <span>{currentUsername}</span>
             {currentUsername === 'test' && <span className="text-[10px] bg-emerald-200 text-emerald-800 px-1 rounded">테스트</span>}
           </div>
+
+          <button
+            onClick={openSupabaseModal}
+            title="Supabase DB 연동 설정 및 동기화"
+            className={`px-2.5 py-1 text-xs font-bold rounded-xl transition-all flex items-center space-x-1 border ${
+              supabaseSyncStatus === 'synced'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                : supabaseSyncStatus === 'syncing'
+                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 animate-pulse'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+            }`}
+          >
+            <Database className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">
+              {supabaseSyncStatus === 'synced'
+                ? 'DB 연동'
+                : supabaseSyncStatus === 'syncing'
+                ? 'DB 동기화중...'
+                : 'DB 설정'}
+            </span>
+          </button>
 
           <button
             onClick={exportBackupJSON}

@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import type { AssetItem, AssetCategoryType, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, Transaction } from '../types/financial';
 import { INITIAL_ASSETS, INITIAL_CATEGORIES, INITIAL_GOAL, INITIAL_TRANSACTIONS } from '../utils/mockData';
 import { getLocalDateString, getLocalYearMonthString, getDaysInMonth } from '../utils/dateUtils';
+import {
+  fetchUserDataFromSupabase,
+  saveUserDataToSupabase,
+  isSupabaseConfigured,
+} from '../services/supabaseService';
+
+export type SupabaseSyncStatus = 'idle' | 'syncing' | 'synced' | 'unconfigured' | 'error';
 
 interface FinancialContextType {
   currentUsername: string;
@@ -14,6 +21,14 @@ interface FinancialContextType {
   investmentItems: InvestmentItem[];
   goal: MonthlyGoal;
   todayDateStr: string;
+
+  // Supabase DB Sync State & Actions
+  supabaseSyncStatus: SupabaseSyncStatus;
+  supabaseLastSyncedAt: string | null;
+  isSupabaseModalOpen: boolean;
+  openSupabaseModal: () => void;
+  closeSupabaseModal: () => void;
+  syncNowWithSupabase: () => Promise<void>;
   
   // Category Actions
   addCategory: (cat: Omit<Category, 'id'>) => void;
@@ -144,6 +159,13 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   // Automatic Real-Time Local Date State (updates at midnight or on tab focus)
   const [todayDateStr, setTodayDateStr] = useState<string>(() => getLocalDateString());
 
+  // Supabase DB Sync States
+  const [supabaseSyncStatus, setSupabaseSyncStatus] = useState<SupabaseSyncStatus>(() => {
+    return isSupabaseConfigured() ? 'idle' : 'unconfigured';
+  });
+  const [supabaseLastSyncedAt, setSupabaseLastSyncedAt] = useState<string | null>(null);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+
   useEffect(() => {
     const checkDate = () => {
       const currentLocal = getLocalDateString();
@@ -262,6 +284,89 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     }
   }, [goal, currentUsername]);
 
+  // Supabase Cloud DB Synchronizer
+  const syncNowWithSupabase = async () => {
+    if (!isSupabaseConfigured()) {
+      setSupabaseSyncStatus('unconfigured');
+      return;
+    }
+
+    setSupabaseSyncStatus('syncing');
+    try {
+      const remoteData = await fetchUserDataFromSupabase(currentUsername);
+      if (remoteData) {
+        if (Array.isArray(remoteData.categories)) setCategories(remoteData.categories);
+        if (Array.isArray(remoteData.assets)) setManualAssets(remoteData.assets);
+        if (Array.isArray(remoteData.transactions)) setTransactions(remoteData.transactions);
+        if (Array.isArray(remoteData.fixedExpenses)) setFixedExpenses(remoteData.fixedExpenses);
+        if (Array.isArray(remoteData.expectedIncomeItems)) setExpectedIncomeItems(remoteData.expectedIncomeItems);
+        if (Array.isArray(remoteData.investmentItems)) setInvestmentItems(remoteData.investmentItems);
+        if (remoteData.goal) setGoal(remoteData.goal);
+
+        setSupabaseSyncStatus('synced');
+        setSupabaseLastSyncedAt(remoteData.updatedAt || new Date().toISOString());
+      } else {
+        // Initialize remote DB for user
+        const ok = await saveUserDataToSupabase(currentUsername, {
+          categories,
+          assets: manualAssets,
+          transactions,
+          fixedExpenses,
+          expectedIncomeItems,
+          investmentItems,
+          goal,
+        });
+        if (ok) {
+          setSupabaseSyncStatus('synced');
+          setSupabaseLastSyncedAt(new Date().toISOString());
+        } else {
+          setSupabaseSyncStatus('error');
+        }
+      }
+    } catch (e) {
+      console.error('Supabase sync error:', e);
+      setSupabaseSyncStatus('error');
+    }
+  };
+
+  // Trigger Supabase sync on user load
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      syncNowWithSupabase();
+    } else {
+      setSupabaseSyncStatus('unconfigured');
+    }
+  }, [currentUsername]);
+
+  // Push updates to Supabase DB asynchronously when state changes
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (isSupabaseConfigured()) {
+      const timer = setTimeout(async () => {
+        const ok = await saveUserDataToSupabase(currentUsername, {
+          categories,
+          assets: manualAssets,
+          transactions,
+          fixedExpenses,
+          expectedIncomeItems,
+          investmentItems,
+          goal,
+        });
+        if (ok) {
+          setSupabaseSyncStatus('synced');
+          setSupabaseLastSyncedAt(new Date().toISOString());
+        } else {
+          setSupabaseSyncStatus('error');
+        }
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [categories, manualAssets, transactions, fixedExpenses, expectedIncomeItems, investmentItems, goal, currentUsername]);
+
   // Effective Combined Assets
   const assets = useMemo<AssetItem[]>(() => {
     const invItemNames = new Set(investmentItems.map(i => i.name.toLowerCase().trim()));
@@ -298,251 +403,182 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return totalAssets - totalLiabilities;
   }, [totalAssets, totalLiabilities]);
 
-  // Fixed Expense Total
+  // Income totals for current month
+  const currentMonthYM = goal.yearMonth || getLocalYearMonthString();
+
+  const currentMonthIncome = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'income' && t.date.startsWith(currentMonthYM))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, currentMonthYM]);
+
+  const expectedMonthlyIncome = useMemo(() => {
+    return expectedIncomeItems.reduce((sum, item) => sum + item.amount, 0);
+  }, [expectedIncomeItems]);
+
+  const currentMonthExpense = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'expense' && t.date.startsWith(currentMonthYM))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, currentMonthYM]);
+
+  const currentMonthInvestment = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'investment' && t.date.startsWith(currentMonthYM))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, currentMonthYM]);
+
   const totalFixedExpenseAmount = useMemo(() => {
     return fixedExpenses.reduce((sum, fe) => sum + fe.amount, 0);
   }, [fixedExpenses]);
 
-  // Expected Monthly Income Total
-  const expectedMonthlyIncome = useMemo(() => {
-    const itemizedSum = expectedIncomeItems.reduce((sum, item) => sum + item.amount, 0);
-    return itemizedSum > 0 ? itemizedSum : (goal.expectedIncome || 0);
-  }, [expectedIncomeItems, goal.expectedIncome]);
-
-  // Investment Totals
-  const totalInvestmentPrincipal = useMemo(() => {
-    return investmentItems.reduce((sum, item) => sum + item.principalAmount, 0);
-  }, [investmentItems]);
-
-  const totalInvestmentCurrentValue = useMemo(() => {
-    return investmentItems.reduce((sum, item) => sum + item.currentValue, 0);
-  }, [investmentItems]);
-
-  const totalInvestmentReturn = useMemo(() => {
-    return totalInvestmentCurrentValue - totalInvestmentPrincipal;
-  }, [totalInvestmentCurrentValue, totalInvestmentPrincipal]);
-
-  const totalInvestmentReturnPct = useMemo(() => {
-    if (totalInvestmentPrincipal <= 0) return 0;
-    return (totalInvestmentReturn / totalInvestmentPrincipal) * 100;
-  }, [totalInvestmentReturn, totalInvestmentPrincipal]);
-
-  // Current Month Transactions
-  const currentMonthTransactions = useMemo(() => {
-    const currentYM = goal.yearMonth || getLocalYearMonthString();
-    return transactions.filter(t => t.date.startsWith(currentYM));
-  }, [transactions, goal.yearMonth]);
-
-  const currentMonthIncome = useMemo(() => {
-    return currentMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions]);
-
-  const currentMonthExpense = useMemo(() => {
-    return currentMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions]);
-
-  const currentMonthInvestment = useMemo(() => {
-    return currentMonthTransactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions]);
-
+  // Net Savings for current month
   const currentMonthNetSaving = useMemo(() => {
     return currentMonthIncome - currentMonthExpense;
   }, [currentMonthIncome, currentMonthExpense]);
 
-  // Initial Monthly Variable Budget
+  // Budget calculations
+  const baselineIncome = useMemo(() => {
+    return currentMonthIncome > 0 ? currentMonthIncome : expectedMonthlyIncome;
+  }, [currentMonthIncome, expectedMonthlyIncome]);
+
   const initialVariableBudget = useMemo(() => {
-    const effectiveIncome = Math.max(currentMonthIncome, expectedMonthlyIncome);
-    const targetVal = goal.targetIncreaseAmount || 0;
-    return Math.max(effectiveIncome - targetVal - totalFixedExpenseAmount, 0);
-  }, [currentMonthIncome, expectedMonthlyIncome, goal.targetIncreaseAmount, totalFixedExpenseAmount]);
+    return Math.max(baselineIncome - goal.targetIncreaseAmount - totalFixedExpenseAmount, 0);
+  }, [baselineIncome, goal.targetIncreaseAmount, totalFixedExpenseAmount]);
 
-  // 1. Past Variable Expense Spent (Expenses UP TO YESTERDAY: date < todayDateStr)
   const pastVariableExpenseSpent = useMemo(() => {
-    const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
-    return currentMonthTransactions
-      .filter(t => {
-        if (t.date >= todayDateStr) return false; // Exclude today and future dates
-        if (t.type !== 'expense') return false;
-        if (t.memo?.includes('고정지출')) return false;
-        const merchantLower = t.merchant.toLowerCase();
-        if (fixedExpenseNames.some(name => merchantLower.includes(name) || name.includes(merchantLower))) return false;
-        return true;
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions, fixedExpenses, todayDateStr]);
-
-  // 2. Today's Variable Expense Spent (Expenses LOGGED TODAY: date === todayDateStr)
-  const todayVariableExpenseSpent = useMemo(() => {
-    const fixedExpenseNames = fixedExpenses.map(fe => fe.name.toLowerCase());
     return transactions
-      .filter(t => {
-        if (t.date !== todayDateStr) return false;
-        if (t.type !== 'expense') return false;
-        if (t.memo?.includes('고정지출')) return false;
-        const merchantLower = t.merchant.toLowerCase();
-        if (fixedExpenseNames.some(name => merchantLower.includes(name) || name.includes(merchantLower))) return false;
-        return true;
-      })
+      .filter(t => t.type === 'expense' && t.date.startsWith(currentMonthYM) && t.date < todayDateStr)
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions, fixedExpenses, todayDateStr]);
+  }, [transactions, currentMonthYM, todayDateStr]);
 
-  // 3. Total Pure Variable Expense Spent This Month
+  const todayVariableExpenseSpent = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'expense' && t.date === todayDateStr)
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, todayDateStr]);
+
   const pureVariableExpenseSpent = useMemo(() => {
     return pastVariableExpenseSpent + todayVariableExpenseSpent;
   }, [pastVariableExpenseSpent, todayVariableExpenseSpent]);
 
-  // 4. Remaining Variable Budget BEFORE TODAY (Start of today)
   const remainingVariableBudgetBeforeToday = useMemo(() => {
     return initialVariableBudget - pastVariableExpenseSpent;
   }, [initialVariableBudget, pastVariableExpenseSpent]);
 
-  // 5. Total Remaining Variable Budget (After today's spent)
   const remainingVariableBudget = useMemo(() => {
     return initialVariableBudget - pureVariableExpenseSpent;
   }, [initialVariableBudget, pureVariableExpenseSpent]);
 
+  const todayAvailableBudget = useMemo(() => {
+    return remainingVariableBudgetBeforeToday - todayVariableExpenseSpent;
+  }, [remainingVariableBudgetBeforeToday, todayVariableExpenseSpent]);
+
+  const investmentMetrics = useMemo(() => {
+    const totalPrincipal = investmentItems.reduce((s, i) => s + i.principalAmount, 0);
+    const totalValuation = investmentItems.reduce((s, i) => s + i.currentValue, 0);
+    const totalReturn = totalValuation - totalPrincipal;
+    const totalReturnPct = totalPrincipal > 0 ? (totalReturn / totalPrincipal) * 100 : 0;
+    return {
+      totalPrincipal,
+      totalValuation,
+      totalReturn,
+      totalReturnPct,
+    };
+  }, [investmentItems]);
+
   const monthlyGoalProgress = useMemo(() => {
-    if (!goal.targetIncreaseAmount || goal.targetIncreaseAmount <= 0) return 0;
+    if (goal.targetIncreaseAmount <= 0) return 100;
     const pct = (currentMonthNetSaving / goal.targetIncreaseAmount) * 100;
-    return Math.min(Math.max(Math.round(pct), 0), 100);
+    return Math.max(Math.round(pct), 0);
   }, [currentMonthNetSaving, goal.targetIncreaseAmount]);
 
-  // Gulbi Advice Engine
   const gulbiAdvice = useMemo<GulbiAdvice>(() => {
-    const yearMonth = goal.yearMonth || getLocalYearMonthString();
-    const [year, month] = yearMonth.split('-').map(Number);
-    const totalDays = getDaysInMonth(year, month);
-    
-    const now = new Date();
-    const currentDay = year === now.getFullYear() && month === (now.getMonth() + 1)
-      ? Math.min(now.getDate(), totalDays)
-      : 1;
+    const today = new Date();
+    const currentDay = today.getDate();
+    const daysInMonth = getDaysInMonth(today.getFullYear(), today.getMonth() + 1);
+    const currentDaysLeft = Math.max(daysInMonth - currentDay + 1, 1);
 
-    const daysLeft = Math.max(totalDays - currentDay + 1, 1);
+    const safeBudgetRemBeforeToday = Math.max(remainingVariableBudgetBeforeToday, 0);
+    const dailyTargetBudget = Math.floor(safeBudgetRemBeforeToday / currentDaysLeft);
 
-    const targetVal = goal.targetIncreaseAmount || 0;
-    const remainingToGoal = Math.max(targetVal - currentMonthNetSaving, 0);
-
-    // Baseline daily target budget calculated from PRE-TODAY remaining budget!
-    const dailyTargetBudget = daysLeft > 0 ? Math.round(Math.max(remainingVariableBudgetBeforeToday, 0) / daysLeft) : 0;
-    const todayAvail = dailyTargetBudget - todayVariableExpenseSpent;
-
-    let spendingPace: 'safe' | 'caution' | 'danger' = 'safe';
-    let healthScore = 80;
-
-    if (targetVal <= 0) {
-      healthScore = 80;
-      spendingPace = 'safe';
-    } else if (monthlyGoalProgress >= 90) {
-      spendingPace = 'safe';
-      healthScore = 95;
-    } else if (remainingVariableBudget <= 0 || todayAvail < 0) {
-      spendingPace = 'danger';
-      healthScore = 58;
-    } else if (monthlyGoalProgress < (currentDay / totalDays) * 100 - 15) {
-      spendingPace = 'caution';
-      healthScore = 72;
-    }
-
+    let pace: 'safe' | 'caution' | 'danger' = 'safe';
+    let healthScore = 95;
+    let statusMessage = '훌륭합니다! 계획된 지출 범위 안에서 순항하고 있어요. 🏆';
     const adviceList: string[] = [];
 
-    if (targetVal <= 0) {
-      adviceList.push(`🎯 안녕하세요, ${currentUsername}님! 상단의 [목표 자산 증액] 메뉴에서 이번 달 목표 및 예상 수입을 설정해 보세요!`);
-      if (totalFixedExpenseAmount > 0) {
-        adviceList.push(`💳 매월 고정지출(${totalFixedExpenseAmount.toLocaleString()}원)을 미리 차감하여 순수 변동지출 일일 한도를 산출합니다.`);
-      }
-    } else if (currentMonthNetSaving >= targetVal) {
-      adviceList.push('🎉 축하합니다! 이번 달 자산 증액 목표를 달성하셨습니다!');
-      adviceList.push('💡 여유 자금은 예적금이나 투자 자산에 배분해 보세요.');
+    if (remainingVariableBudget < 0) {
+      pace = 'danger';
+      healthScore = 40;
+      statusMessage = '⚠️ 이번 달 변동 지출 예산을 초과했습니다! 지출 점검이 필요합니다.';
+      adviceList.push('고정 지출 외 불필요한 결제를 일시 중단하세요.');
+    } else if (todayVariableExpenseSpent > dailyTargetBudget && dailyTargetBudget > 0) {
+      pace = 'caution';
+      healthScore = 75;
+      statusMessage = '💡 오늘 권장 지출액을 조금 초과했습니다. 남은 기간 일일 지출 조절을 추천합니다.';
+      adviceList.push('내일 지출을 5,000원씩 절약해 가용 예산을 복구해 보세요.');
+    } else if (dailyTargetBudget < 10000 && remainingVariableBudget > 0) {
+      pace = 'caution';
+      healthScore = 65;
+      statusMessage = '🚨 남아있는 하루 안전 지출 한도가 매우 적습니다. 불필요한 소비를 자제해 주세요!';
+      adviceList.push('외식 및 배달 소비를 지양하고 집밥을 이용하세요.');
     } else {
-      adviceList.push(`🎯 목표 증액분까지 ${remainingToGoal.toLocaleString()}원 남았습니다.`);
-      adviceList.push(`📅 오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 오늘 ${todayVariableExpenseSpent.toLocaleString()}원 지출 ➔ 오늘 남은 가용 금액: ${todayAvail.toLocaleString()}원`);
+      adviceList.push('지금처럼 안전한 지출 습관을 유지해 보세요!');
     }
 
-    let statusMessage = `${currentUsername}님 전용 자산 가계부입니다. 굴비가 스마트하게 예산을 관리합니다! 🐟`;
-    if (targetVal <= 0) statusMessage = '이번 달 목표 자산 증액분 및 예상 수입을 설정해 보세요! 🎯';
-    else if (todayAvail < 0) statusMessage = `⚠️ 오늘 권장 예산(${dailyTargetBudget.toLocaleString()}원)을 ${Math.abs(todayAvail).toLocaleString()}원 초과했습니다! 긴축 지출이 시급합니다 🚨`;
-    else if (spendingPace === 'safe') statusMessage = `오늘 권장예산(${dailyTargetBudget.toLocaleString()}원) 중 ${todayVariableExpenseSpent.toLocaleString()}원 사용 ➔ 오늘 추가 가용 금액: ${todayAvail.toLocaleString()}원 🐟✨`;
-    else if (spendingPace === 'caution') statusMessage = '가용 예산이 다소 부족합니다. 오늘 변동 지출을 점검하세요! ⚠️';
-    else if (spendingPace === 'danger') statusMessage = '변동지출 예산이 초과되었거나 긴축이 시급합니다! 🚨';
+    const projectedIncrease = currentMonthNetSaving;
 
     return {
-      healthScore,
-      statusMessage,
-      spendingPace,
       dailyTargetBudget,
-      currentDaysLeft: daysLeft,
-      projectedIncrease: currentMonthNetSaving,
+      spendingPace: pace,
+      statusMessage,
+      healthScore,
+      projectedIncrease,
+      currentDaysLeft,
       adviceList,
     };
-  }, [currentUsername, goal.yearMonth, goal.targetIncreaseAmount, remainingVariableBudgetBeforeToday, remainingVariableBudget, currentMonthNetSaving, monthlyGoalProgress, totalFixedExpenseAmount, todayVariableExpenseSpent]);
+  }, [remainingVariableBudgetBeforeToday, remainingVariableBudget, todayVariableExpenseSpent, currentMonthNetSaving]);
 
-  // Today's Available Budget
-  const todayAvailableBudget = useMemo(() => {
-    return gulbiAdvice.dailyTargetBudget - todayVariableExpenseSpent;
-  }, [gulbiAdvice.dailyTargetBudget, todayVariableExpenseSpent]);
-
-  // Category Actions
+  // Actions
   const addCategory = (cat: Omit<Category, 'id'>) => {
     const newCat: Category = { ...cat, id: `cat_${Date.now()}` };
     setCategories(prev => [...prev, newCat]);
   };
 
-  const updateCategory = (id: string, updated: Partial<Category>) => {
-    setCategories(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
+  const updateCategory = (id: string, updatedFields: Partial<Category>) => {
+    setCategories(prev => prev.map(c => (c.id === id ? { ...c, ...updatedFields } : c)));
   };
 
   const deleteCategory = (id: string) => {
     setCategories(prev => prev.filter(c => c.id !== id));
   };
 
-  // Asset Actions
   const addAsset = (asset: Omit<AssetItem, 'id' | 'updatedAt'>) => {
     const newAsset: AssetItem = {
       ...asset,
       id: `ast_${Date.now()}`,
       updatedAt: getLocalDateString(),
     };
-    setManualAssets(prev => [...prev, newAsset]);
+    setManualAssets(prev => [newAsset, ...prev]);
   };
 
-  const updateAsset = (id: string, updated: Partial<AssetItem>) => {
-    if (id.startsWith('linked_inv_')) {
-      const invId = id.replace('linked_inv_', '');
-      if (updated.amount !== undefined) {
-        updateInvestmentItem(invId, { currentValue: Math.abs(updated.amount) });
-      }
-      if (updated.name !== undefined) {
-        updateInvestmentItem(invId, { name: updated.name });
-      }
-      if (updated.institution !== undefined) {
-        updateInvestmentItem(invId, { institution: updated.institution });
-      }
-      return;
-    }
-    setManualAssets(prev => prev.map(a => (a.id === id ? { ...a, ...updated, updatedAt: getLocalDateString() } : a)));
+  const updateAsset = (id: string, updatedFields: Partial<AssetItem>) => {
+    setManualAssets(prev =>
+      prev.map(a => (a.id === id ? { ...a, ...updatedFields, updatedAt: getLocalDateString() } : a))
+    );
   };
 
   const deleteAsset = (id: string) => {
-    if (id.startsWith('linked_inv_')) {
-      const invId = id.replace('linked_inv_', '');
-      deleteInvestmentItem(invId);
-      return;
-    }
     setManualAssets(prev => prev.filter(a => a.id !== id));
   };
 
-  // Fixed Expense Actions
   const addFixedExpense = (expense: Omit<FixedExpense, 'id'>) => {
-    const newExpense: FixedExpense = {
-      ...expense,
-      id: `fe_${Date.now()}`,
-    };
-    setFixedExpenses(prev => [...prev, newExpense]);
+    const newExpense: FixedExpense = { ...expense, id: `fe_${Date.now()}` };
+    setFixedExpenses(prev => [newExpense, ...prev]);
   };
 
-  const updateFixedExpense = (id: string, updated: Partial<FixedExpense>) => {
-    setFixedExpenses(prev => prev.map(fe => (fe.id === id ? { ...fe, ...updated } : fe)));
+  const updateFixedExpense = (id: string, updatedFields: Partial<FixedExpense>) => {
+    setFixedExpenses(prev => prev.map(fe => (fe.id === id ? { ...fe, ...updatedFields } : fe)));
   };
 
   const deleteFixedExpense = (id: string) => {
@@ -550,104 +586,91 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   };
 
   const logFixedExpenseToLedger = (id: string) => {
-    const fe = fixedExpenses.find(item => item.id === id);
-    if (!fe) return;
-
-    const ym = goal.yearMonth || getLocalYearMonthString();
-    const dateStr = `${ym}-${String(fe.dayOfMonth).padStart(2, '0')}`;
+    const target = fixedExpenses.find(fe => fe.id === id);
+    if (!target) return;
 
     const newTx: Transaction = {
       id: `tx_fe_${Date.now()}`,
-      date: dateStr,
-      time: '09:00',
+      date: getLocalDateString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'expense',
-      categoryId: fe.categoryId,
-      categoryName: fe.categoryName,
-      amount: fe.amount,
-      merchant: fe.name,
-      paymentMethod: fe.paymentMethod,
-      memo: `월 고정지출 결제 (${fe.name})`,
+      categoryId: target.categoryId,
+      categoryName: target.categoryName,
+      amount: target.amount,
+      merchant: `[고정지출] ${target.name}`,
+      paymentMethod: target.paymentMethod,
+      memo: target.memo || '자동이체/정기결제 기록',
     };
-
     setTransactions(prev => [newTx, ...prev]);
   };
 
-  // Expected Income Actions
   const addExpectedIncomeItem = (item: Omit<ExpectedIncomeItem, 'id'>) => {
-    const newItem: ExpectedIncomeItem = {
-      ...item,
-      id: `ei_${Date.now()}`,
-    };
-    setExpectedIncomeItems(prev => [...prev, newItem]);
+    const newItem: ExpectedIncomeItem = { ...item, id: `exp_inc_${Date.now()}` };
+    setExpectedIncomeItems(prev => [newItem, ...prev]);
   };
 
-  const updateExpectedIncomeItem = (id: string, updated: Partial<ExpectedIncomeItem>) => {
-    setExpectedIncomeItems(prev => prev.map(ei => (ei.id === id ? { ...ei, ...updated } : ei)));
+  const updateExpectedIncomeItem = (id: string, updatedFields: Partial<ExpectedIncomeItem>) => {
+    setExpectedIncomeItems(prev => prev.map(item => (item.id === id ? { ...item, ...updatedFields } : item)));
   };
 
   const deleteExpectedIncomeItem = (id: string) => {
-    setExpectedIncomeItems(prev => prev.filter(ei => ei.id !== id));
+    setExpectedIncomeItems(prev => prev.filter(item => item.id !== id));
   };
 
   const logExpectedIncomeToLedger = (id: string) => {
-    const item = expectedIncomeItems.find(i => i.id === id);
-    if (!item) return;
-
-    const dateStr = getLocalDateString();
+    const target = expectedIncomeItems.find(item => item.id === id);
+    if (!target) return;
 
     const newTx: Transaction = {
-      id: `tx_ei_${Date.now()}`,
-      date: dateStr,
-      time: '09:00',
+      id: `tx_inc_${Date.now()}`,
+      date: getLocalDateString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'income',
-      categoryId: item.categoryId,
-      categoryName: item.categoryName,
-      amount: item.amount,
-      merchant: item.name,
-      paymentMethod: '급여/통장입금',
-      memo: `예상 수입 실제 입금 기록 (${item.name})`,
+      categoryId: target.categoryId,
+      categoryName: target.categoryName,
+      amount: target.amount,
+      merchant: `[예상수입] ${target.name}`,
+      paymentMethod: '계좌입금',
+      memo: target.memo || '실제 수입 장부 기록',
     };
-
     setTransactions(prev => [newTx, ...prev]);
   };
 
-  // Investment Actions
   const addInvestmentItem = (item: Omit<InvestmentItem, 'id' | 'updatedAt'>) => {
     const newItem: InvestmentItem = {
       ...item,
       id: `inv_${Date.now()}`,
       updatedAt: getLocalDateString(),
     };
-    setInvestmentItems(prev => [...prev, newItem]);
+    setInvestmentItems(prev => [newItem, ...prev]);
   };
 
-  const updateInvestmentItem = (id: string, updated: Partial<InvestmentItem>) => {
-    setInvestmentItems(prev => prev.map(inv => (inv.id === id ? { ...inv, ...updated, updatedAt: getLocalDateString() } : inv)));
+  const updateInvestmentItem = (id: string, updatedFields: Partial<InvestmentItem>) => {
+    setInvestmentItems(prev =>
+      prev.map(i => (i.id === id ? { ...i, ...updatedFields, updatedAt: getLocalDateString() } : i))
+    );
   };
 
   const deleteInvestmentItem = (id: string) => {
-    setInvestmentItems(prev => prev.filter(inv => inv.id !== id));
+    setInvestmentItems(prev => prev.filter(i => i.id !== id));
   };
 
   const logInvestmentToLedger = (id: string) => {
     const item = investmentItems.find(i => i.id === id);
     if (!item) return;
 
-    const dateStr = getLocalDateString();
-
     const newTx: Transaction = {
       id: `tx_inv_${Date.now()}`,
-      date: dateStr,
-      time: '09:00',
+      date: getLocalDateString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'investment',
       categoryId: item.categoryId,
       categoryName: item.categoryName,
       amount: item.principalAmount,
-      merchant: item.name,
-      paymentMethod: item.institution || '증권사/거래소',
-      memo: `투자 자금 입금 기록 (${item.name})`,
+      merchant: `[투자매수] ${item.name}`,
+      paymentMethod: item.institution || '증권/거래소',
+      memo: item.memo || '투자 탭 연동 기록',
     };
-
     setTransactions(prev => [newTx, ...prev]);
   };
 
@@ -657,26 +680,26 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   };
 
   const addTransactionsBatch = (txs: Omit<Transaction, 'id'>[]) => {
-    const newTxs: Transaction[] = txs.map((tx, idx) => ({ ...tx, id: `tx_${Date.now()}_${idx}` }));
+    const newTxs: Transaction[] = txs.map((t, idx) => ({ ...t, id: `tx_${Date.now()}_${idx}` }));
     setTransactions(prev => [...newTxs, ...prev]);
   };
 
-  const updateTransaction = (id: string, updated: Partial<Transaction>) => {
-    setTransactions(prev => prev.map(t => (t.id === id ? { ...t, ...updated } : t)));
+  const updateTransaction = (id: string, updatedFields: Partial<Transaction>) => {
+    setTransactions(prev => prev.map(t => (t.id === id ? { ...t, ...updatedFields } : t)));
   };
 
   const deleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
-  const updateGoal = (newGoal: Partial<MonthlyGoal>) => {
-    setGoal(prev => ({ ...prev, ...newGoal }));
+  const updateGoal = (newGoalFields: Partial<MonthlyGoal>) => {
+    setGoal(prev => ({ ...prev, ...newGoalFields }));
   };
 
   const resetToMockData = () => {
     setCategories(INITIAL_CATEGORIES);
-    setManualAssets([]);
-    setTransactions([]);
+    setManualAssets(INITIAL_ASSETS);
+    setTransactions(INITIAL_TRANSACTIONS);
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
     setInvestmentItems([]);
@@ -684,20 +707,19 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   };
 
   const clearAllData = () => {
+    const defaultYM = getLocalYearMonthString();
+    setCategories(INITIAL_CATEGORIES);
     setManualAssets([]);
     setTransactions([]);
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
     setInvestmentItems([]);
-    setGoal({ yearMonth: getLocalYearMonthString(), targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
+    setGoal({ yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
   };
 
-  // Export Complete Backup JSON
   const exportBackupJSON = () => {
-    const backupData = {
-      version: 1,
+    const dataObj = {
       username: currentUsername,
-      exportedAt: new Date().toISOString(),
       categories,
       assets: manualAssets,
       transactions,
@@ -705,33 +727,35 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       expectedIncomeItems,
       investmentItems,
       goal,
+      exportedAt: new Date().toISOString(),
     };
-    const jsonStr = JSON.stringify(backupData, null, 2);
+    const jsonStr = JSON.stringify(dataObj, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gulbi_${currentUsername}_asset_backup_${getLocalDateString()}.json`;
+    a.download = `Gulbi_${currentUsername}_Backup_${getLocalDateString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // Import Backup JSON
   const importBackupJSON = (jsonString: string): boolean => {
     try {
-      const data = JSON.parse(jsonString);
-      if (Array.isArray(data.categories)) setCategories(data.categories);
-      if (Array.isArray(data.assets)) setManualAssets(data.assets);
-      if (Array.isArray(data.transactions)) setTransactions(data.transactions);
-      if (Array.isArray(data.fixedExpenses)) setFixedExpenses(data.fixedExpenses);
-      if (Array.isArray(data.expectedIncomeItems)) setExpectedIncomeItems(data.expectedIncomeItems);
-      if (Array.isArray(data.investmentItems)) setInvestmentItems(data.investmentItems);
-      if (data.goal) setGoal(data.goal);
-      return true;
+      const parsed = JSON.parse(jsonString);
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.categories)) setCategories(parsed.categories);
+        if (Array.isArray(parsed.assets)) setManualAssets(parsed.assets);
+        if (Array.isArray(parsed.transactions)) setTransactions(parsed.transactions);
+        if (Array.isArray(parsed.fixedExpenses)) setFixedExpenses(parsed.fixedExpenses);
+        if (Array.isArray(parsed.expectedIncomeItems)) setExpectedIncomeItems(parsed.expectedIncomeItems);
+        if (Array.isArray(parsed.investmentItems)) setInvestmentItems(parsed.investmentItems);
+        if (parsed.goal && typeof parsed.goal === 'object') setGoal(parsed.goal);
+        return true;
+      }
     } catch (e) {
-      console.error('Import failed:', e);
-      return false;
+      console.error('Failed to import backup JSON:', e);
     }
+    return false;
   };
 
   return (
@@ -747,6 +771,12 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         investmentItems,
         goal,
         todayDateStr,
+        supabaseSyncStatus,
+        supabaseLastSyncedAt,
+        isSupabaseModalOpen,
+        openSupabaseModal: () => setIsSupabaseModalOpen(true),
+        closeSupabaseModal: () => setIsSupabaseModalOpen(false),
+        syncNowWithSupabase,
         addCategory,
         updateCategory,
         deleteCategory,
@@ -786,10 +816,10 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         remainingVariableBudgetBeforeToday,
         remainingVariableBudget,
         todayAvailableBudget,
-        totalInvestmentPrincipal,
-        totalInvestmentCurrentValue,
-        totalInvestmentReturn,
-        totalInvestmentReturnPct,
+        totalInvestmentPrincipal: investmentMetrics.totalPrincipal,
+        totalInvestmentCurrentValue: investmentMetrics.totalValuation,
+        totalInvestmentReturn: investmentMetrics.totalReturn,
+        totalInvestmentReturnPct: investmentMetrics.totalReturnPct,
         monthlyGoalProgress,
         gulbiAdvice,
         resetToMockData,
