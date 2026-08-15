@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Database, RefreshCw, CheckCircle2, AlertCircle, Copy, Check, X, ShieldCheck } from 'lucide-react';
+import { Database, RefreshCw, CheckCircle2, AlertCircle, Copy, Check, X, ShieldCheck, UploadCloud, DownloadCloud, AlertTriangle } from 'lucide-react';
 import { getStoredSupabaseConfig, saveSupabaseConfig, SUPABASE_SQL_SCHEMA } from '../services/supabaseService';
+import { useFinancial } from '../context/FinancialContext';
 
 interface SupabaseSyncModalProps {
   isOpen: boolean;
@@ -19,13 +20,16 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
   lastSyncedAt,
   currentUsername,
 }) => {
+  const { supabaseErrorMsg, uploadLocalToSupabase, downloadRemoteFromSupabase } = useFinancial();
   const initialConfig = getStoredSupabaseConfig();
+
   const [url, setUrl] = useState(initialConfig.url);
   const [anonKey, setAnonKey] = useState(initialConfig.anonKey);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [showSql, setShowSql] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
 
   if (!isOpen) return null;
 
@@ -33,6 +37,7 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
     e.preventDefault();
     setIsSaving(true);
     setSaveSuccessMsg('');
+    setActionNotice('');
 
     saveSupabaseConfig({
       url: url.trim(),
@@ -41,8 +46,26 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
 
     await onSyncNow();
     setIsSaving(false);
-    setSaveSuccessMsg('🎉 Supabase DB 연결 설정이 저장되었으며 데이터 동기화가 완료되었습니다!');
+    setSaveSuccessMsg('🎉 Supabase DB 연결 정보가 저장되었으며 데이터 동기화를 시도했습니다.');
     setTimeout(() => setSaveSuccessMsg(''), 4000);
+  };
+
+  const handleUploadLocal = async () => {
+    setActionNotice('');
+    const ok = await uploadLocalToSupabase();
+    if (ok) {
+      setActionNotice('✅ 현재 기기의 자산/지출/투자 내역이 Supabase DB로 성공적으로 전송되었습니다!');
+      setTimeout(() => setActionNotice(''), 4000);
+    }
+  };
+
+  const handleDownloadRemote = async () => {
+    setActionNotice('');
+    const ok = await downloadRemoteFromSupabase();
+    if (ok) {
+      setActionNotice('✅ Supabase DB의 최신 데이터로 기기 데이터가 성공적으로 복원되었습니다!');
+      setTimeout(() => setActionNotice(''), 4000);
+    }
   };
 
   const handleCopySql = () => {
@@ -50,6 +73,8 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2500);
   };
+
+  const isTableMissingError = supabaseErrorMsg?.toLowerCase().includes('relation') || supabaseErrorMsg?.toLowerCase().includes('does not exist');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in">
@@ -89,7 +114,7 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
             {syncStatus === 'synced' && (
               <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 border border-emerald-200 font-extrabold">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>🟢 Supabase 클라우드 동기화 완료</span>
+                <span>🟢 Supabase 클라우드 동기화 정상 완료</span>
               </span>
             )}
             {syncStatus === 'syncing' && (
@@ -101,13 +126,13 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
             {syncStatus === 'unconfigured' && (
               <span className="inline-flex items-center space-x-1 rounded-full bg-slate-200 px-3 py-1 text-slate-700 border border-slate-300 font-extrabold">
                 <AlertCircle className="h-3.5 w-3.5" />
-                <span>⚙️ Supabase API 키 설정 필요 (로컬 전용)</span>
+                <span>⚙️ Supabase API 키 설정 필요</span>
               </span>
             )}
             {syncStatus === 'error' && (
               <span className="inline-flex items-center space-x-1 rounded-full bg-rose-50 px-3 py-1 text-rose-700 border border-rose-200 font-extrabold">
                 <AlertCircle className="h-3.5 w-3.5" />
-                <span>🔴 DB 연결 오류 발생 (키 또는 테이블 확인)</span>
+                <span>🔴 DB 연동 오류</span>
               </span>
             )}
           </div>
@@ -125,11 +150,58 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
           </div>
         </div>
 
-        {saveSuccessMsg && (
+        {/* Action / Success / Error Alerts */}
+        {actionNotice && (
           <div className="rounded-2xl bg-emerald-50 p-3.5 border border-emerald-200 text-xs font-bold text-emerald-800">
+            {actionNotice}
+          </div>
+        )}
+
+        {saveSuccessMsg && (
+          <div className="rounded-2xl bg-indigo-50 p-3.5 border border-indigo-200 text-xs font-bold text-indigo-800">
             {saveSuccessMsg}
           </div>
         )}
+
+        {supabaseErrorMsg && (
+          <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200 space-y-2 text-xs text-rose-800 font-medium">
+            <div className="flex items-center space-x-1.5 font-bold text-rose-900 text-sm">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>Supabase DB 오류 발생 상세 안내</span>
+            </div>
+            <p className="font-mono bg-white p-2.5 rounded-xl border border-rose-200 text-rose-900 overflow-x-auto text-[11px]">
+              {supabaseErrorMsg}
+            </p>
+            {isTableMissingError && (
+              <p className="text-slate-700 font-bold bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-[11px] leading-relaxed">
+                💡 Supabase에 <strong>gulbi_user_data</strong> 테이블이 생성이 안 된 상태입니다. 하단의 <strong>[SQL 테이블 생성 스크립트 보기]</strong> 버튼을 눌러 SQL을 복사한 뒤 Supabase Dashboard &gt; SQL Editor에서 실행해 주세요!
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Manual Direct Upload & Download Controls */}
+        <div className="rounded-2xl bg-indigo-50/60 p-4 border border-indigo-100 space-y-3">
+          <span className="text-xs font-bold text-indigo-900 block">⚡️ 1-Click 수동 데이터 업로드 & 복원</span>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleUploadLocal}
+              disabled={syncStatus === 'syncing' || !url || !anonKey}
+              className="flex items-center justify-center space-x-2 rounded-xl bg-indigo-600 py-2.5 px-3 text-xs font-bold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all disabled:opacity-50"
+            >
+              <UploadCloud className="h-4 w-4" />
+              <span>내 기기 데이터 ➔ DB로 전송</span>
+            </button>
+            <button
+              onClick={handleDownloadRemote}
+              disabled={syncStatus === 'syncing' || !url || !anonKey}
+              className="flex items-center justify-center space-x-2 rounded-xl bg-white text-indigo-900 border border-indigo-200 py-2.5 px-3 text-xs font-bold hover:bg-indigo-50 transition-all disabled:opacity-50"
+            >
+              <DownloadCloud className="h-4 w-4 text-indigo-600" />
+              <span>DB 데이터 ➔ 내 기기로 받아오기</span>
+            </button>
+          </div>
+        </div>
 
         {/* Configuration Form */}
         <form onSubmit={handleSaveConfig} className="space-y-4">

@@ -65,20 +65,31 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export interface UserFinancialPayload {
-  categories: any[];
-  assets: any[];
-  transactions: any[];
-  fixedExpenses: any[];
-  expectedIncomeItems: any[];
-  investmentItems: any[];
-  goal: any;
-  updatedAt: string;
+  categories?: any[];
+  assets?: any[];
+  transactions?: any[];
+  fixedExpenses?: any[];
+  expectedIncomeItems?: any[];
+  investmentItems?: any[];
+  goal?: any;
+  updatedAt?: string;
+}
+
+export interface SupabaseFetchResult {
+  success: boolean;
+  data: UserFinancialPayload | null;
+  errorMsg?: string;
+}
+
+export interface SupabaseSaveResult {
+  success: boolean;
+  errorMsg?: string;
 }
 
 // Fetch user financial data payload from Supabase DB
-export async function fetchUserDataFromSupabase(username: string): Promise<UserFinancialPayload | null> {
+export async function fetchUserDataFromSupabase(username: string): Promise<SupabaseFetchResult> {
   const client = getSupabaseClient();
-  if (!client) return null;
+  if (!client) return { success: false, data: null, errorMsg: 'Supabase URL/Key가 설정되지 않았습니다.' };
 
   try {
     const safeUser = (username || 'guest').toLowerCase().trim();
@@ -89,26 +100,31 @@ export async function fetchUserDataFromSupabase(username: string): Promise<UserF
       .maybeSingle();
 
     if (error) {
-      console.warn('Supabase fetch notice:', error.message);
-      return null;
+      console.warn('Supabase fetch error:', error.message);
+      return { success: false, data: null, errorMsg: error.message };
     }
 
     if (data && data.data) {
       return {
-        ...data.data,
-        updatedAt: data.updated_at || data.data.updatedAt || new Date().toISOString(),
+        success: true,
+        data: {
+          ...data.data,
+          updatedAt: data.updated_at || data.data.updatedAt || new Date().toISOString(),
+        },
       };
     }
-  } catch (e) {
+
+    return { success: true, data: null };
+  } catch (e: any) {
     console.error('Supabase fetch exception:', e);
+    return { success: false, data: null, errorMsg: e?.message || 'DB 연결 네트워크 예외 발생' };
   }
-  return null;
 }
 
 // Save/Upsert user financial data payload to Supabase DB
-export async function saveUserDataToSupabase(username: string, payload: Omit<UserFinancialPayload, 'updatedAt'>): Promise<boolean> {
+export async function saveUserDataToSupabase(username: string, payload: Omit<UserFinancialPayload, 'updatedAt'>): Promise<SupabaseSaveResult> {
   const client = getSupabaseClient();
-  if (!client) return false;
+  if (!client) return { success: false, errorMsg: 'Supabase URL/Key가 설정되지 않았습니다.' };
 
   try {
     const safeUser = (username || 'guest').toLowerCase().trim();
@@ -131,13 +147,13 @@ export async function saveUserDataToSupabase(username: string, payload: Omit<Use
 
     if (error) {
       console.error('Supabase upsert error:', error.message);
-      return false;
+      return { success: false, errorMsg: error.message };
     }
 
-    return true;
-  } catch (e) {
+    return { success: true };
+  } catch (e: any) {
     console.error('Supabase upsert exception:', e);
-    return false;
+    return { success: false, errorMsg: e?.message || 'DB 저장 예외 발생' };
   }
 }
 

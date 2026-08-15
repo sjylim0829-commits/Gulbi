@@ -24,11 +24,14 @@ interface FinancialContextType {
 
   // Supabase DB Sync State & Actions
   supabaseSyncStatus: SupabaseSyncStatus;
+  supabaseErrorMsg: string | null;
   supabaseLastSyncedAt: string | null;
   isSupabaseModalOpen: boolean;
   openSupabaseModal: () => void;
   closeSupabaseModal: () => void;
   syncNowWithSupabase: () => Promise<void>;
+  uploadLocalToSupabase: () => Promise<boolean>;
+  downloadRemoteFromSupabase: () => Promise<boolean>;
   
   // Category Actions
   addCategory: (cat: Omit<Category, 'id'>) => void;
@@ -163,8 +166,12 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   const [supabaseSyncStatus, setSupabaseSyncStatus] = useState<SupabaseSyncStatus>(() => {
     return isSupabaseConfigured() ? 'idle' : 'unconfigured';
   });
+  const [supabaseErrorMsg, setSupabaseErrorMsg] = useState<string | null>(null);
   const [supabaseLastSyncedAt, setSupabaseLastSyncedAt] = useState<string | null>(null);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+
+  const isSyncingRemote = useRef(false);
+  const isDataLoadedFromRemote = useRef(false);
 
   useEffect(() => {
     const checkDate = () => {
@@ -218,6 +225,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
   // Re-load data whenever currentUsername changes
   useEffect(() => {
     const defaultYM = getLocalYearMonthString();
+    isDataLoadedFromRemote.current = false;
     setCategories(loadUserStorageItem<Category[]>(currentUsername, 'categories', INITIAL_CATEGORIES));
     setManualAssets(loadUserStorageItem<AssetItem[]>(currentUsername, 'assets', currentUsername === 'sjylim' ? INITIAL_ASSETS : []));
     setTransactions(loadUserStorageItem<Transaction[]>(currentUsername, 'transactions', currentUsername === 'sjylim' ? INITIAL_TRANSACTIONS : []));
@@ -284,30 +292,43 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     }
   }, [goal, currentUsername]);
 
-  // Supabase Cloud DB Synchronizer
-  const syncNowWithSupabase = async () => {
+  // Supabase Cloud DB Synchronizers
+  const downloadRemoteFromSupabase = async (): Promise<boolean> => {
     if (!isSupabaseConfigured()) {
       setSupabaseSyncStatus('unconfigured');
-      return;
+      setSupabaseErrorMsg(null);
+      return false;
     }
 
     setSupabaseSyncStatus('syncing');
+    setSupabaseErrorMsg(null);
+    isSyncingRemote.current = true;
+
     try {
-      const remoteData = await fetchUserDataFromSupabase(currentUsername);
-      if (remoteData) {
-        if (Array.isArray(remoteData.categories)) setCategories(remoteData.categories);
-        if (Array.isArray(remoteData.assets)) setManualAssets(remoteData.assets);
-        if (Array.isArray(remoteData.transactions)) setTransactions(remoteData.transactions);
-        if (Array.isArray(remoteData.fixedExpenses)) setFixedExpenses(remoteData.fixedExpenses);
-        if (Array.isArray(remoteData.expectedIncomeItems)) setExpectedIncomeItems(remoteData.expectedIncomeItems);
-        if (Array.isArray(remoteData.investmentItems)) setInvestmentItems(remoteData.investmentItems);
-        if (remoteData.goal) setGoal(remoteData.goal);
+      const res = await fetchUserDataFromSupabase(currentUsername);
+
+      if (!res.success) {
+        setSupabaseSyncStatus('error');
+        setSupabaseErrorMsg(res.errorMsg || 'Supabase 데이터를 불러오는 중 오류가 발생했습니다.');
+        return false;
+      }
+
+      if (res.data) {
+        const remote = res.data;
+        if (Array.isArray(remote.categories) && remote.categories.length > 0) setCategories(remote.categories);
+        if (Array.isArray(remote.assets)) setManualAssets(remote.assets);
+        if (Array.isArray(remote.transactions)) setTransactions(remote.transactions);
+        if (Array.isArray(remote.fixedExpenses)) setFixedExpenses(remote.fixedExpenses);
+        if (Array.isArray(remote.expectedIncomeItems)) setExpectedIncomeItems(remote.expectedIncomeItems);
+        if (Array.isArray(remote.investmentItems)) setInvestmentItems(remote.investmentItems);
+        if (remote.goal) setGoal(remote.goal);
 
         setSupabaseSyncStatus('synced');
-        setSupabaseLastSyncedAt(remoteData.updatedAt || new Date().toISOString());
+        setSupabaseLastSyncedAt(remote.updatedAt || new Date().toISOString());
+        return true;
       } else {
-        // Initialize remote DB for user
-        const ok = await saveUserDataToSupabase(currentUsername, {
+        // Remote data empty, upload local data to initialize DB
+        const saveRes = await saveUserDataToSupabase(currentUsername, {
           categories,
           assets: manualAssets,
           transactions,
@@ -316,55 +337,101 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
           investmentItems,
           goal,
         });
-        if (ok) {
+
+        if (saveRes.success) {
           setSupabaseSyncStatus('synced');
           setSupabaseLastSyncedAt(new Date().toISOString());
+          return true;
         } else {
           setSupabaseSyncStatus('error');
+          setSupabaseErrorMsg(saveRes.errorMsg || 'Supabase 초기 데이터 저장에 실패했습니다.');
+          return false;
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Supabase sync error:', e);
       setSupabaseSyncStatus('error');
+      setSupabaseErrorMsg(e?.message || '동기화 중 예외 발생');
+      return false;
+    } finally {
+      isSyncingRemote.current = false;
+      isDataLoadedFromRemote.current = true;
     }
   };
 
-  // Trigger Supabase sync on user load
+  const uploadLocalToSupabase = async (): Promise<boolean> => {
+    if (!isSupabaseConfigured()) {
+      setSupabaseSyncStatus('unconfigured');
+      setSupabaseErrorMsg(null);
+      return false;
+    }
+
+    setSupabaseSyncStatus('syncing');
+    setSupabaseErrorMsg(null);
+
+    const saveRes = await saveUserDataToSupabase(currentUsername, {
+      categories,
+      assets: manualAssets,
+      transactions,
+      fixedExpenses,
+      expectedIncomeItems,
+      investmentItems,
+      goal,
+    });
+
+    if (saveRes.success) {
+      setSupabaseSyncStatus('synced');
+      setSupabaseLastSyncedAt(new Date().toISOString());
+      return true;
+    } else {
+      setSupabaseSyncStatus('error');
+      setSupabaseErrorMsg(saveRes.errorMsg || 'Supabase 업로드 실패');
+      return false;
+    }
+  };
+
+  const syncNowWithSupabase = async () => {
+    await downloadRemoteFromSupabase();
+  };
+
+  // Initial Supabase Sync on load/login
   useEffect(() => {
     if (isSupabaseConfigured()) {
-      syncNowWithSupabase();
+      downloadRemoteFromSupabase();
     } else {
       setSupabaseSyncStatus('unconfigured');
+      setSupabaseErrorMsg(null);
     }
   }, [currentUsername]);
 
-  // Push updates to Supabase DB asynchronously when state changes
-  const isInitialMount = useRef(true);
+  // Debounced Auto-push updates to Supabase DB asynchronously when state mutates
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    if (!isSupabaseConfigured() || isSyncingRemote.current || !isDataLoadedFromRemote.current) {
       return;
     }
-    if (isSupabaseConfigured()) {
-      const timer = setTimeout(async () => {
-        const ok = await saveUserDataToSupabase(currentUsername, {
-          categories,
-          assets: manualAssets,
-          transactions,
-          fixedExpenses,
-          expectedIncomeItems,
-          investmentItems,
-          goal,
-        });
-        if (ok) {
-          setSupabaseSyncStatus('synced');
-          setSupabaseLastSyncedAt(new Date().toISOString());
-        } else {
-          setSupabaseSyncStatus('error');
-        }
-      }, 600);
-      return () => clearTimeout(timer);
-    }
+
+    const timer = setTimeout(async () => {
+      const res = await saveUserDataToSupabase(currentUsername, {
+        categories,
+        assets: manualAssets,
+        transactions,
+        fixedExpenses,
+        expectedIncomeItems,
+        investmentItems,
+        goal,
+      });
+
+      if (res.success) {
+        setSupabaseSyncStatus('synced');
+        setSupabaseLastSyncedAt(new Date().toISOString());
+        setSupabaseErrorMsg(null);
+      } else {
+        setSupabaseSyncStatus('error');
+        setSupabaseErrorMsg(res.errorMsg || '자동 저장 실패');
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [categories, manualAssets, transactions, fixedExpenses, expectedIncomeItems, investmentItems, goal, currentUsername]);
 
   // Effective Combined Assets
@@ -772,11 +839,14 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         goal,
         todayDateStr,
         supabaseSyncStatus,
+        supabaseErrorMsg,
         supabaseLastSyncedAt,
         isSupabaseModalOpen,
         openSupabaseModal: () => setIsSupabaseModalOpen(true),
         closeSupabaseModal: () => setIsSupabaseModalOpen(false),
         syncNowWithSupabase,
+        uploadLocalToSupabase,
+        downloadRemoteFromSupabase,
         addCategory,
         updateCategory,
         deleteCategory,
