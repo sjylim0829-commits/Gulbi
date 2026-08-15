@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Database, RefreshCw, CheckCircle2, AlertCircle, Copy, Check, X, ShieldCheck, UploadCloud, DownloadCloud, AlertTriangle } from 'lucide-react';
-import { getStoredSupabaseConfig, saveSupabaseConfig, SUPABASE_SQL_SCHEMA } from '../services/supabaseService';
+import { Database, RefreshCw, CheckCircle2, AlertCircle, Copy, Check, X, ShieldCheck, UploadCloud, DownloadCloud, AlertTriangle, Link as LinkIcon, Share2 } from 'lucide-react';
+import { getStoredSupabaseConfig, saveSupabaseConfig, SUPABASE_SQL_SCHEMA, generateQuickSyncLink } from '../services/supabaseService';
 import { useFinancial } from '../context/FinancialContext';
 
 interface SupabaseSyncModalProps {
@@ -26,6 +26,7 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
   const [url, setUrl] = useState(initialConfig.url);
   const [anonKey, setAnonKey] = useState(initialConfig.anonKey);
   const [isCopied, setIsCopied] = useState(false);
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [showSql, setShowSql] = useState(false);
@@ -72,6 +73,17 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
     navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2500);
+  };
+
+  const handleCopyQuickLink = () => {
+    const link = generateQuickSyncLink();
+    if (!link) {
+      alert('URL과 Key를 먼저 설정하신 후 저장해 주세요!');
+      return;
+    }
+    navigator.clipboard.writeText(link);
+    setIsLinkCopied(true);
+    setTimeout(() => setIsLinkCopied(false), 2500);
   };
 
   const isTableMissingError = supabaseErrorMsg?.toLowerCase().includes('relation') || supabaseErrorMsg?.toLowerCase().includes('does not exist');
@@ -179,6 +191,27 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
             )}
           </div>
         )}
+
+        {/* Quick Cross-Device Sync Link Generator */}
+        <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-200 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Share2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs font-bold text-emerald-900">🔗 스마트폰/다른 기기용 1초 자동연동 링크</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyQuickLink}
+              className="inline-flex items-center space-x-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition-all"
+            >
+              {isLinkCopied ? <Check className="h-3.5 w-3.5 text-white" /> : <LinkIcon className="h-3.5 w-3.5" />}
+              <span>{isLinkCopied ? '복사 완료!' : '연동 링크 복사'}</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-emerald-800 leading-relaxed">
+            스마트폰, 태블릿, 다른 PC에서 이 링크로 접속하면 DB 연결 설정이 <strong>1초 만에 자동 저장</strong>되어 어디서나 키 입력 없이 내 가계부를 바로 열어보실 수 있습니다!
+          </p>
+        </div>
 
         {/* Manual Direct Upload & Download Controls */}
         <div className="rounded-2xl bg-indigo-50/60 p-4 border border-indigo-100 space-y-3">

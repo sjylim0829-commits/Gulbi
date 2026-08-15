@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config/supabaseDefault';
 
 export interface SupabaseConfig {
   url: string;
@@ -7,8 +8,31 @@ export interface SupabaseConfig {
 
 const CONFIG_STORAGE_KEY = 'gulbi_supabase_config';
 
-// Load stored config or environment variables
+// Load stored config, URL query link, environment variables, or universal default
 export function getStoredSupabaseConfig(): SupabaseConfig {
+  // Check URL parameters or hash for one-click setup link across devices
+  if (typeof window !== 'undefined') {
+    try {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      const rawParams = (hash.includes('sb_url=') ? hash : search).replace(/^#\/?/, '').replace(/^\?/, '');
+      const params = new URLSearchParams(rawParams);
+      const linkUrl = params.get('sb_url');
+      const linkKey = params.get('sb_key');
+
+      if (linkUrl && linkKey) {
+        const config = { url: decodeURIComponent(linkUrl).trim(), anonKey: decodeURIComponent(linkKey).trim() };
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+        // Clean URL bar
+        window.history.replaceState(null, '', window.location.pathname);
+        return config;
+      }
+    } catch (e) {
+      console.error('Failed to parse URL config link:', e);
+    }
+  }
+
+  // 1. Check local storage
   try {
     const local = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (local) {
@@ -21,13 +45,17 @@ export function getStoredSupabaseConfig(): SupabaseConfig {
     console.error('Failed to parse Supabase config from localStorage:', e);
   }
 
-  // Fallback to VITE env vars if available
+  // 2. Fallback to VITE env vars if available
   const envUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
   const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
+  if (envUrl && envKey) {
+    return { url: envUrl, anonKey: envKey };
+  }
 
+  // 3. Fallback to universal default config file
   return {
-    url: envUrl,
-    anonKey: envKey,
+    url: DEFAULT_SUPABASE_URL || '',
+    anonKey: DEFAULT_SUPABASE_ANON_KEY || '',
   };
 }
 
@@ -62,6 +90,17 @@ export function saveSupabaseConfig(config: SupabaseConfig): void {
 export function isSupabaseConfigured(): boolean {
   const config = getStoredSupabaseConfig();
   return Boolean(config.url && config.anonKey);
+}
+
+export function generateQuickSyncLink(): string {
+  const config = getStoredSupabaseConfig();
+  if (!config.url || !config.anonKey) return '';
+  const baseUrl = window.location.origin + window.location.pathname;
+  const params = new URLSearchParams({
+    sb_url: config.url,
+    sb_key: config.anonKey,
+  });
+  return `${baseUrl}#${params.toString()}`;
 }
 
 export interface UserFinancialPayload {
