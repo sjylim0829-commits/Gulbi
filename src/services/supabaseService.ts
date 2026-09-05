@@ -111,8 +111,10 @@ export interface UserFinancialPayload {
   expectedIncomeItems?: any[];
   investmentItems?: any[];
   goal?: any;
+  goals?: Record<string, any>;
   updatedAt?: string;
 }
+
 
 export interface SupabaseFetchResult {
   success: boolean;

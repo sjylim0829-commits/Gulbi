@@ -1,11 +1,45 @@
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, TrendingUp, Trash2, Edit2, FolderPlus, ArrowUpDown } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  TrendingUp,
+  Trash2,
+  Edit2,
+  FolderPlus,
+  ArrowUpDown,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3,
+  PiggyBank,
+  Sparkles,
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+} from 'recharts';
 import type { Transaction, TransactionType } from '../../types/financial';
 import { getLocalDateString } from '../../utils/dateUtils';
 
 export const LedgerView: React.FC = () => {
-  const { transactions, categories, addTransaction, updateTransaction, deleteTransaction } = useFinancial();
+  const { transactions, categories, addTransaction, updateTransaction, deleteTransaction, getYearMonthlyTrends } = useFinancial();
+
+  // Year / Month Filter State
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(currentMonth);
+  const [showYearlyTrend, setShowYearlyTrend] = useState<boolean>(true);
 
   const [activeTab, setActiveTab] = useState<'all' | TransactionType>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,9 +65,66 @@ export const LedgerView: React.FC = () => {
     return categories.filter(c => c.type === type);
   }, [categories, type]);
 
+  // Year list for selector
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([currentYear, currentYear - 1, currentYear + 1]);
+    transactions.forEach(t => {
+      const y = parseInt(t.date.split('-')[0], 10);
+      if (!isNaN(y)) years.add(y);
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions, currentYear]);
+
+  // Navigation handlers
+  const handlePrevMonth = () => {
+    if (selectedMonth === 'all') {
+      setSelectedMonth(12);
+      setSelectedYear(prev => prev - 1);
+    } else if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(prev => prev - 1);
+    } else {
+      setSelectedMonth(prev => (prev as number) - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 'all') {
+      setSelectedMonth(1);
+      setSelectedYear(prev => prev + 1);
+    } else if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(prev => prev + 1);
+    } else {
+      setSelectedMonth(prev => (prev as number) + 1);
+    }
+  };
+
+  const handleSetCurrentMonth = () => {
+    setSelectedYear(currentYear);
+    setSelectedMonth(currentMonth);
+  };
+
+
+  const currentYearMonthPrefix = useMemo(() => {
+    if (selectedMonth === 'all') return `${selectedYear}-`;
+    return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+  }, [selectedYear, selectedMonth]);
+
   const openAddModal = () => {
     setEditingTx(null);
-    setDate(getLocalDateString());
+    let defaultDate = getLocalDateString();
+    if (selectedMonth !== 'all') {
+      const ymPrefix = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+      if (!defaultDate.startsWith(ymPrefix)) {
+        defaultDate = `${ymPrefix}-01`;
+      }
+    } else {
+      if (!defaultDate.startsWith(`${selectedYear}-`)) {
+        defaultDate = `${selectedYear}-01-01`;
+      }
+    }
+    setDate(defaultDate);
     setTime('12:00');
     setType('expense');
     const firstCat = categories.find(c => c.type === 'expense');
@@ -94,6 +185,7 @@ export const LedgerView: React.FC = () => {
   // Filtered List
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
+      if (!t.date.startsWith(currentYearMonthPrefix)) return false;
       if (activeTab !== 'all' && t.type !== activeTab) return false;
       if (selectedCategoryId !== 'all' && t.categoryId !== selectedCategoryId) return false;
       if (searchQuery.trim()) {
@@ -106,7 +198,7 @@ export const LedgerView: React.FC = () => {
       }
       return true;
     });
-  }, [transactions, activeTab, selectedCategoryId, searchQuery]);
+  }, [transactions, currentYearMonthPrefix, activeTab, selectedCategoryId, searchQuery]);
 
   // Sorted filtered list
   const sortedFilteredTransactions = useMemo(() => {
@@ -131,28 +223,361 @@ export const LedgerView: React.FC = () => {
   const totalFilteredIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalFilteredExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const totalFilteredInvestment = filteredTransactions.filter(t => t.type === 'investment').reduce((s, t) => s + t.amount, 0);
+  const filteredIncomeCount = filteredTransactions.filter(t => t.type === 'income').length;
+  const filteredExpenseCount = filteredTransactions.filter(t => t.type === 'expense').length;
+  const filteredInvestmentCount = filteredTransactions.filter(t => t.type === 'investment').length;
+  const filteredNetSaving = totalFilteredIncome - totalFilteredExpense;
+  const filteredSavingRate = totalFilteredIncome > 0 ? Math.round((filteredNetSaving / totalFilteredIncome) * 100) : null;
+
+  // Top expense categories breakdown
+  const topExpenseCategories = useMemo(() => {
+    const expenseTxs = filteredTransactions.filter(t => t.type === 'expense');
+    const catMap = new Map<string, { name: string; amount: number; color?: string }>();
+    expenseTxs.forEach(t => {
+      const existing = catMap.get(t.categoryId) || {
+        name: t.categoryName,
+        amount: 0,
+        color: categories.find(c => c.id === t.categoryId)?.color || '#f43f5e',
+      };
+      existing.amount += t.amount;
+      catMap.set(t.categoryId, existing);
+    });
+    const list = Array.from(catMap.values()).sort((a, b) => b.amount - a.amount);
+    return list.slice(0, 4).map(item => ({
+      ...item,
+      percentage: totalFilteredExpense > 0 ? Math.round((item.amount / totalFilteredExpense) * 100) : 0,
+    }));
+  }, [filteredTransactions, categories, totalFilteredExpense]);
+
+  // Yearly 12-Month Trends for Recharts
+  const yearlyTrendData = useMemo(() => {
+    const trends = getYearMonthlyTrends(selectedYear);
+    return trends.map((stat, idx) => ({
+      monthName: `${idx + 1}월`,
+      monthNum: idx + 1,
+      yearMonth: stat.yearMonth,
+      수입: stat.totalIncome,
+      지출: stat.totalExpense,
+      투자: stat.totalInvestment,
+      순저축: stat.netSaving,
+    }));
+  }, [selectedYear, getYearMonthlyTrends]);
+
 
   return (
     <div className="space-y-6 pb-12">
       
-      {/* Top Header & Filter Controls */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">가계부</h1>
-            <p className="text-xs text-slate-500">수입, 지출, 투자 내역 통합 관리 및 검색</p>
-          </div>
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center space-x-2">
+            <span>가계부</span>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+              {selectedMonth === 'all' ? `${selectedYear}년 연간 전체` : `${selectedYear}년 ${selectedMonth}월`}
+            </span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">매달의 소비, 수입, 투자 내역을 연/월별로 조회하고 비교 분석합니다.</p>
+        </div>
+
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={() => setShowYearlyTrend(prev => !prev)}
+            className={`inline-flex items-center space-x-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${
+              showYearlyTrend
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span>{showYearlyTrend ? '월별 추이 차트 접기' : '연간 월별 추이 차트'}</span>
+          </button>
+
           <button
             onClick={openAddModal}
-            className="inline-flex items-center justify-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all shrink-0"
+            className="inline-flex items-center justify-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all shrink-0"
           >
             <Plus className="h-4 w-4" />
             <span>수기 거래내역 추가</span>
           </button>
         </div>
+      </div>
 
-        {/* Filters */}
-        <div className="flex flex-col lg:flex-row gap-3 pt-2">
+      {/* Year / Month Navigator Card */}
+      <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          
+          {/* Year Selector & Month Step Buttons */}
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 bg-slate-100 rounded-xl px-2.5 py-1 border border-slate-200 text-xs font-bold text-slate-800">
+              <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                className="bg-transparent font-bold focus:outline-none cursor-pointer pr-1"
+              >
+                {availableYears.map(y => (
+                  <option key={y} value={y}>{y}년</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handlePrevMonth}
+                title="이전 달"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleSetCurrentMonth}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                  selectedYear === currentYear && selectedMonth === currentMonth
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                이번 달 (오늘)
+              </button>
+              <button
+                onClick={handleNextMonth}
+                title="다음 달"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Month Indicator Label */}
+          <div className="text-xs text-slate-500 font-medium">
+            조회 기간: <strong className="text-slate-900 font-bold">{selectedMonth === 'all' ? `${selectedYear}년 전체 (1~12월)` : `${selectedYear}년 ${selectedMonth}월 (1일 ~ 말일)`}</strong>
+            <span className="ml-2 text-slate-400">· 거래 건수: <strong className="text-indigo-600">{filteredTransactions.length}건</strong></span>
+          </div>
+        </div>
+
+        {/* 1 ~ 12 Month Quick Filter Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+          <button
+            onClick={() => setSelectedMonth('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+              selectedMonth === 'all'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            연간 전체
+          </button>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+            const isCurrentMonth = selectedYear === currentYear && m === currentMonth;
+            const isSelected = selectedMonth === m;
+            return (
+              <button
+                key={m}
+                onClick={() => setSelectedMonth(m)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border relative ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-200'
+                    : isCurrentMonth
+                    ? 'bg-indigo-50/80 text-indigo-700 border-indigo-300 font-extrabold'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span>{m}월</span>
+                {isCurrentMonth && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"></span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Monthly Financial Status KPI Strip (소비/수입/투자/순저축 현황) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        
+        {/* Income Card */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">
+              {selectedMonth === 'all' ? '연간 총 수입' : `${selectedMonth}월 수입 현황`}
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+              <ArrowUpCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 tracking-tight">
+              +{totalFilteredIncome.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              총 {filteredIncomeCount}건의 수입 내역
+            </div>
+          </div>
+        </div>
+
+        {/* Expense Card (소비) */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">
+              {selectedMonth === 'all' ? '연간 총 소비(지출)' : `${selectedMonth}월 소비(지출) 현황`}
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+              <ArrowDownCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xl sm:text-2xl font-extrabold text-rose-600 tracking-tight">
+              -{totalFilteredExpense.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              총 {filteredExpenseCount}건의 결제 및 소비
+            </div>
+          </div>
+        </div>
+
+        {/* Investment Card */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">
+              {selectedMonth === 'all' ? '연간 총 투자금' : `${selectedMonth}월 투자 투입금`}
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xl sm:text-2xl font-extrabold text-purple-600 tracking-tight">
+              {totalFilteredInvestment.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              총 {filteredInvestmentCount}건의 주식/코인/예적금 투자
+            </div>
+          </div>
+        </div>
+
+        {/* Net Savings Card */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">
+              {selectedMonth === 'all' ? '연간 순저축(수입-소비)' : `${selectedMonth}월 순저축액`}
+            </span>
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+              filteredNetSaving >= 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+            }`}>
+              <PiggyBank className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className={`text-xl sm:text-2xl font-extrabold tracking-tight ${
+              filteredNetSaving >= 0 ? 'text-indigo-600' : 'text-rose-600'
+            }`}>
+              {filteredNetSaving >= 0 ? `+${filteredNetSaving.toLocaleString()}` : filteredNetSaving.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="flex items-center space-x-2 text-[11px] mt-0.5">
+              <span className={`font-bold px-1.5 py-0.5 rounded-md ${
+                filteredNetSaving >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+              }`}>
+                {filteredNetSaving >= 0 ? '흑자 🟢' : '적자 🔴'}
+              </span>
+              {filteredSavingRate !== null && (
+                <span className="text-slate-500">저축률: <strong className="text-slate-700">{filteredSavingRate}%</strong></span>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Top Expense Categories Breakdown Bar (지출 상위 분석) */}
+      {topExpenseCategories.length > 0 && (
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span className="flex items-center space-x-1.5">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span>{selectedMonth === 'all' ? `${selectedYear}년` : `${selectedMonth}월`} 소비 카테고리 TOP 비중</span>
+            </span>
+            <span className="text-slate-400 font-normal">총 소비 {totalFilteredExpense.toLocaleString()}원 기준</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {topExpenseCategories.map((cat, idx) => (
+              <div key={cat.name} className="rounded-2xl bg-slate-50 p-3 border border-slate-200/60 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-800 truncate">{idx + 1}. {cat.name}</span>
+                  <span className="font-extrabold text-slate-900">{cat.percentage}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-rose-500"
+                    style={{ width: `${cat.percentage}%`, backgroundColor: cat.color || '#f43f5e' }}
+                  ></div>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono">
+                  {cat.amount.toLocaleString()}원
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 12-Month Trend Chart (Recharts Bar Chart) */}
+      {showYearlyTrend && (
+        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <BarChart3 className="h-4 w-4 text-indigo-600" />
+                <span>{selectedYear}년 1월 ~ 12월 월별 소비 / 수입 / 투자 비교 추이</span>
+              </h2>
+              <p className="text-xs text-slate-500">막대를 클릭하면 해당 월로 바로 전환하여 상세 거래 내역을 볼 수 있습니다.</p>
+            </div>
+            <span className="text-xs font-semibold text-slate-400">단위: 원</span>
+          </div>
+
+          <div className="h-64 sm:h-72 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={yearlyTrendData}
+                margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
+                onClick={(e: any) => {
+                  if (e && e.activePayload && e.activePayload.length > 0) {
+                    const clickedData = e.activePayload[0].payload;
+                    if (clickedData && clickedData.monthNum) {
+                      setSelectedMonth(clickedData.monthNum);
+                    }
+                  }
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="monthName" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickFormatter={(val) => {
+                    if (val >= 100000000) return `${(val / 100000000).toFixed(1)}억`;
+                    if (val >= 10000) return `${Math.round(val / 10000)}만`;
+                    return `${val}`;
+                  }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                />
+                <Tooltip
+                  formatter={(val: any) => [`${Number(val || 0).toLocaleString()}원`]}
+                  contentStyle={{ borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Bar dataKey="수입" fill="#10b981" radius={[4, 4, 0, 0]} cursor="pointer" />
+                <Bar dataKey="지출" fill="#f43f5e" radius={[4, 4, 0, 0]} cursor="pointer" />
+                <Bar dataKey="투자" fill="#8b5cf6" radius={[4, 4, 0, 0]} cursor="pointer" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Controls Bar */}
+      <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row gap-3">
           
           {/* Type Tabs */}
           <div className="flex items-center space-x-1 rounded-xl bg-slate-100 p-1 border border-slate-200 shrink-0">
@@ -162,7 +587,7 @@ export const LedgerView: React.FC = () => {
                 activeTab === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              전체 ({transactions.length})
+              전체 ({filteredTransactions.length})
             </button>
             <button
               onClick={() => setActiveTab('income')}
@@ -170,7 +595,7 @@ export const LedgerView: React.FC = () => {
                 activeTab === 'income' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              수입만
+              수입만 ({filteredIncomeCount})
             </button>
             <button
               onClick={() => setActiveTab('expense')}
@@ -178,7 +603,7 @@ export const LedgerView: React.FC = () => {
                 activeTab === 'expense' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              지출만
+              지출만 ({filteredExpenseCount})
             </button>
             <button
               onClick={() => setActiveTab('investment')}
@@ -186,7 +611,7 @@ export const LedgerView: React.FC = () => {
                 activeTab === 'investment' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              투자만
+              투자만 ({filteredInvestmentCount})
             </button>
           </div>
 
@@ -239,32 +664,6 @@ export const LedgerView: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary KPI Strip for Filtered Results */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <ArrowUpCircle className="h-5 w-5 text-emerald-600" />
-            <span className="text-xs text-slate-600 font-medium">조회 수입 합계</span>
-          </div>
-          <span className="font-extrabold text-emerald-700 text-base">+{totalFilteredIncome.toLocaleString()}원</span>
-        </div>
-
-        <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <ArrowDownCircle className="h-5 w-5 text-rose-600" />
-            <span className="text-xs text-slate-600 font-medium">조회 지출 합계</span>
-          </div>
-          <span className="font-extrabold text-rose-700 text-base">-{totalFilteredExpense.toLocaleString()}원</span>
-        </div>
-
-        <div className="rounded-2xl bg-purple-50 p-4 border border-purple-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-            <span className="text-xs text-slate-600 font-medium">조회 투자 합계</span>
-          </div>
-          <span className="font-extrabold text-purple-700 text-base">➔ {totalFilteredInvestment.toLocaleString()}원</span>
-        </div>
-      </div>
 
       {/* Transaction Table */}
       <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs">

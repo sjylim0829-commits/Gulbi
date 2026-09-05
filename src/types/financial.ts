@@ -81,6 +81,23 @@ export interface MonthlyGoal {
   note?: string;
 }
 
+export type MonthlyGoalStatus = 'achieved' | 'in_progress' | 'failed' | 'not_set';
+
+export interface MonthlyFinancialStats {
+  yearMonth: string; // YYYY-MM
+  totalIncome: number;
+  totalExpense: number;
+  totalInvestment: number;
+  netSaving: number; // income - expense
+  goal: MonthlyGoal;
+  achievementRate: number; // %
+  status: MonthlyGoalStatus;
+  incomeCount: number;
+  expenseCount: number;
+  investmentCount: number;
+}
+
+
 export interface ParsedCardTransaction {
   id: string;
   date: string;

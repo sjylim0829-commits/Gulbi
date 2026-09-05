@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
-import type { AssetItem, AssetCategoryType, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, Transaction } from '../types/financial';
+import type { AssetItem, AssetCategoryType, Category, ExpectedIncomeItem, FixedExpense, GulbiAdvice, InvestmentItem, MonthlyGoal, MonthlyFinancialStats, MonthlyGoalStatus, Transaction } from '../types/financial';
 import { INITIAL_ASSETS, INITIAL_CATEGORIES, INITIAL_GOAL, INITIAL_TRANSACTIONS } from '../utils/mockData';
 import { getLocalDateString, getLocalYearMonthString, getDaysInMonth } from '../utils/dateUtils';
 import {
@@ -20,6 +20,13 @@ interface FinancialContextType {
   expectedIncomeItems: ExpectedIncomeItem[];
   investmentItems: InvestmentItem[];
   goal: MonthlyGoal;
+  goals: Record<string, MonthlyGoal>;
+  selectedGoalYearMonth: string;
+  setSelectedGoalYearMonth: (ym: string) => void;
+  getGoalForMonth: (ym: string) => MonthlyGoal;
+  updateGoalForMonth: (ym: string, newGoal: Partial<MonthlyGoal>) => void;
+  getMonthStats: (ym: string) => MonthlyFinancialStats;
+  getYearMonthlyTrends: (year: number) => MonthlyFinancialStats[];
   todayDateStr: string;
 
   // Supabase DB Sync State & Actions
@@ -222,6 +229,19 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     return loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', fallback);
   });
 
+  const [goals, setGoals] = useState<Record<string, MonthlyGoal>>(() => {
+    const defaultYM = getLocalYearMonthString();
+    const loaded = loadUserStorageItem<Record<string, MonthlyGoal>>(currentUsername, 'goals_record', {});
+    const fallback = currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
+    const baseGoal = loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', fallback);
+    if (!loaded[baseGoal.yearMonth]) {
+      loaded[baseGoal.yearMonth] = baseGoal;
+    }
+    return loaded;
+  });
+
+  const [selectedGoalYearMonth, setSelectedGoalYearMonth] = useState<string>(() => getLocalYearMonthString());
+
   // Re-load data whenever currentUsername changes
   useEffect(() => {
     const defaultYM = getLocalYearMonthString();
@@ -232,7 +252,14 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setFixedExpenses(loadUserStorageItem<FixedExpense[]>(currentUsername, 'fixed_expenses', []));
     setExpectedIncomeItems(loadUserStorageItem<ExpectedIncomeItem[]>(currentUsername, 'expected_income_items', []));
     setInvestmentItems(loadUserStorageItem<InvestmentItem[]>(currentUsername, 'investment_items', []));
-    setGoal(loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' }));
+    const loadedSingleGoal = loadUserStorageItem<MonthlyGoal>(currentUsername, 'goal', currentUsername === 'sjylim' ? INITIAL_GOAL : { yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
+    setGoal(loadedSingleGoal);
+    const loadedGoalsRecord = loadUserStorageItem<Record<string, MonthlyGoal>>(currentUsername, 'goals_record', {});
+    if (!loadedGoalsRecord[loadedSingleGoal.yearMonth]) {
+      loadedGoalsRecord[loadedSingleGoal.yearMonth] = loadedSingleGoal;
+    }
+    setGoals(loadedGoalsRecord);
+    setSelectedGoalYearMonth(defaultYM);
   }, [currentUsername]);
 
   // Sync state to LocalStorage
@@ -292,6 +319,15 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     }
   }, [goal, currentUsername]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(getUserStorageKey(currentUsername, 'goals_record'), JSON.stringify(goals));
+    } catch (e) {
+      console.error('Error saving goals_record:', e);
+    }
+  }, [goals, currentUsername]);
+
+
   // Supabase Cloud DB Synchronizers
   const downloadRemoteFromSupabase = async (): Promise<boolean> => {
     if (!isSupabaseConfigured()) {
@@ -322,6 +358,11 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         if (Array.isArray(remote.expectedIncomeItems)) setExpectedIncomeItems(remote.expectedIncomeItems);
         if (Array.isArray(remote.investmentItems)) setInvestmentItems(remote.investmentItems);
         if (remote.goal) setGoal(remote.goal);
+        if (remote.goals && typeof remote.goals === 'object') {
+          setGoals(remote.goals);
+        } else if (remote.goal && remote.goal.yearMonth) {
+          setGoals(prev => ({ ...prev, [remote.goal.yearMonth]: remote.goal }));
+        }
 
         setSupabaseSyncStatus('synced');
         setSupabaseLastSyncedAt(remote.updatedAt || new Date().toISOString());
@@ -336,6 +377,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
           expectedIncomeItems,
           investmentItems,
           goal,
+          goals,
         });
 
         if (saveRes.success) {
@@ -377,6 +419,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       expectedIncomeItems,
       investmentItems,
       goal,
+      goals,
     });
 
     if (saveRes.success) {
@@ -419,6 +462,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         expectedIncomeItems,
         investmentItems,
         goal,
+        goals,
       });
 
       if (res.success) {
@@ -432,7 +476,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [categories, manualAssets, transactions, fixedExpenses, expectedIncomeItems, investmentItems, goal, currentUsername]);
+  }, [categories, manualAssets, transactions, fixedExpenses, expectedIncomeItems, investmentItems, goal, goals, currentUsername]);
 
   // Effective Combined Assets
   const assets = useMemo<AssetItem[]>(() => {
@@ -759,11 +803,102 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
+  const getGoalForMonth = (ym: string): MonthlyGoal => {
+    if (goals[ym]) return goals[ym];
+    return {
+      yearMonth: ym,
+      targetIncreaseAmount: 0,
+      expectedIncome: 0,
+      note: '',
+    };
+  };
+
+  const updateGoalForMonth = (ym: string, newGoalFields: Partial<MonthlyGoal>) => {
+    setGoals(prev => {
+      const existing = prev[ym] || { yearMonth: ym, targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
+      const updated = { ...existing, ...newGoalFields, yearMonth: ym };
+      return { ...prev, [ym]: updated };
+    });
+    if (ym === goal.yearMonth) {
+      setGoal(prev => ({ ...prev, ...newGoalFields, yearMonth: ym }));
+    }
+  };
+
   const updateGoal = (newGoalFields: Partial<MonthlyGoal>) => {
-    setGoal(prev => ({ ...prev, ...newGoalFields }));
+    setGoal(prev => {
+      const updated = { ...prev, ...newGoalFields };
+      setGoals(gPrev => ({ ...gPrev, [updated.yearMonth]: updated }));
+      return updated;
+    });
+  };
+
+  const getMonthStats = (ym: string): MonthlyFinancialStats => {
+    const currentYM = getLocalYearMonthString();
+    const txs = transactions.filter(t => t.date.startsWith(ym));
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let totalInvestment = 0;
+    let incomeCount = 0;
+    let expenseCount = 0;
+    let investmentCount = 0;
+
+    for (const t of txs) {
+      if (t.type === 'income') {
+        totalIncome += t.amount;
+        incomeCount++;
+      } else if (t.type === 'expense') {
+        totalExpense += t.amount;
+        expenseCount++;
+      } else if (t.type === 'investment') {
+        totalInvestment += t.amount;
+        investmentCount++;
+      }
+    }
+
+    const netSaving = totalIncome - totalExpense;
+    const monthGoal = getGoalForMonth(ym);
+    const target = monthGoal.targetIncreaseAmount;
+
+    let achievementRate = 0;
+    if (target > 0) {
+      achievementRate = Math.round((netSaving / target) * 100);
+    }
+
+    let status: MonthlyGoalStatus = 'not_set';
+    if (target <= 0) {
+      status = 'not_set';
+    } else if (netSaving >= target) {
+      status = 'achieved';
+    } else if (ym < currentYM) {
+      status = 'failed';
+    } else {
+      status = 'in_progress';
+    }
+
+    return {
+      yearMonth: ym,
+      totalIncome,
+      totalExpense,
+      totalInvestment,
+      netSaving,
+      goal: monthGoal,
+      achievementRate,
+      status,
+      incomeCount,
+      expenseCount,
+      investmentCount,
+    };
+  };
+
+  const getYearMonthlyTrends = (year: number): MonthlyFinancialStats[] => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = String(i + 1).padStart(2, '0');
+      return getMonthStats(`${year}-${m}`);
+    });
   };
 
   const resetToMockData = () => {
+    const defaultYM = getLocalYearMonthString();
     setCategories(INITIAL_CATEGORIES);
     setManualAssets(INITIAL_ASSETS);
     setTransactions(INITIAL_TRANSACTIONS);
@@ -771,6 +906,8 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setExpectedIncomeItems([]);
     setInvestmentItems([]);
     setGoal(INITIAL_GOAL);
+    setGoals({ [INITIAL_GOAL.yearMonth]: INITIAL_GOAL });
+    setSelectedGoalYearMonth(defaultYM);
   };
 
   const clearAllData = () => {
@@ -781,7 +918,10 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
     setFixedExpenses([]);
     setExpectedIncomeItems([]);
     setInvestmentItems([]);
-    setGoal({ yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' });
+    const emptyGoal = { yearMonth: defaultYM, targetIncreaseAmount: 0, expectedIncome: 0, note: '' };
+    setGoal(emptyGoal);
+    setGoals({ [defaultYM]: emptyGoal });
+    setSelectedGoalYearMonth(defaultYM);
   };
 
   const exportBackupJSON = () => {
@@ -794,6 +934,7 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
       expectedIncomeItems,
       investmentItems,
       goal,
+      goals,
       exportedAt: new Date().toISOString(),
     };
     const jsonStr = JSON.stringify(dataObj, null, 2);
@@ -817,6 +958,11 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         if (Array.isArray(parsed.expectedIncomeItems)) setExpectedIncomeItems(parsed.expectedIncomeItems);
         if (Array.isArray(parsed.investmentItems)) setInvestmentItems(parsed.investmentItems);
         if (parsed.goal && typeof parsed.goal === 'object') setGoal(parsed.goal);
+        if (parsed.goals && typeof parsed.goals === 'object') {
+          setGoals(parsed.goals);
+        } else if (parsed.goal && parsed.goal.yearMonth) {
+          setGoals({ [parsed.goal.yearMonth]: parsed.goal });
+        }
         return true;
       }
     } catch (e) {
@@ -837,6 +983,13 @@ export const FinancialProvider: React.FC<{ username: string; children: React.Rea
         expectedIncomeItems,
         investmentItems,
         goal,
+        goals,
+        selectedGoalYearMonth,
+        setSelectedGoalYearMonth,
+        getGoalForMonth,
+        updateGoalForMonth,
+        getMonthStats,
+        getYearMonthlyTrends,
         todayDateStr,
         supabaseSyncStatus,
         supabaseErrorMsg,

@@ -1,12 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
-import { Target, AlertTriangle, ShieldCheck, Calendar, Flame, Sparkles, Edit3, Award, DollarSign, Plus, CheckCircle2, Trash2, Edit2, Wallet } from 'lucide-react';
+import {
+  Target,
+  AlertTriangle,
+  ShieldCheck,
+  Calendar,
+  Flame,
+  Sparkles,
+  Edit3,
+  Award,
+  DollarSign,
+  Plus,
+  CheckCircle2,
+  Trash2,
+  Edit2,
+  Wallet,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  TrendingUp,
+  PiggyBank,
+  History,
+  Clock,
+  XCircle,
+} from 'lucide-react';
 import type { ExpectedIncomeItem } from '../../types/financial';
+import { formatYearMonth, getLocalYearMonthString } from '../../utils/dateUtils';
 
 export const GoalTrackerView: React.FC = () => {
   const {
-    goal,
-    updateGoal,
+    goals,
+    getGoalForMonth,
+    updateGoalForMonth,
+    getMonthStats,
+    getYearMonthlyTrends,
     currentMonthIncome,
     expectedMonthlyIncome,
     expectedIncomeItems,
@@ -14,24 +42,60 @@ export const GoalTrackerView: React.FC = () => {
     updateExpectedIncomeItem,
     deleteExpectedIncomeItem,
     logExpectedIncomeToLedger,
-    currentMonthNetSaving,
     totalFixedExpenseAmount,
     pureVariableExpenseSpent,
     initialVariableBudget,
     remainingVariableBudget,
-    monthlyGoalProgress,
     gulbiAdvice,
     pastVariableExpenseSpent,
     todayVariableExpenseSpent,
     remainingVariableBudgetBeforeToday,
     todayAvailableBudget,
     categories,
+    transactions,
   } = useFinancial();
+
+  // Year / Month Selection State
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const currentYM = getLocalYearMonthString();
+
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
+  const [showHistoryGrid, setShowHistoryGrid] = useState<boolean>(true);
+
+  const selectedYM = useMemo(() => {
+    return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+  }, [selectedYear, selectedMonth]);
+
+  // Selected Month Goal & Stats
+  const activeMonthGoal = useMemo(() => {
+    return getGoalForMonth(selectedYM);
+  }, [selectedYM, getGoalForMonth, goals]);
+
+  const activeMonthStats = useMemo(() => {
+    return getMonthStats(selectedYM);
+  }, [selectedYM, getMonthStats, transactions, goals]);
+
+  // Year list for selector
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([currentYear, currentYear - 1, currentYear + 1]);
+    Object.keys(goals).forEach(ym => {
+      const y = parseInt(ym.split('-')[0], 10);
+      if (!isNaN(y)) years.add(y);
+    });
+    transactions.forEach(t => {
+      const y = parseInt(t.date.split('-')[0], 10);
+      if (!isNaN(y)) years.add(y);
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [goals, transactions, currentYear]);
 
   // Goal Edit Modal State
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
-  const [targetAmountInput, setTargetAmountInput] = useState(goal.targetIncreaseAmount.toString());
-  const [noteInput, setNoteInput] = useState(goal.note || '');
+  const [targetAmountInput, setTargetAmountInput] = useState(activeMonthGoal.targetIncreaseAmount.toString());
+  const [noteInput, setNoteInput] = useState(activeMonthGoal.note || '');
 
   // Expected Income Item Modal State
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
@@ -43,15 +107,41 @@ export const GoalTrackerView: React.FC = () => {
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  // Month navigation handlers
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(prev => prev - 1);
+    } else {
+      setSelectedMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(prev => prev + 1);
+    } else {
+      setSelectedMonth(prev => prev + 1);
+    }
+  };
+
+  const handleSetCurrentMonth = () => {
+    setSelectedYear(currentYear);
+    setSelectedMonth(currentMonth);
+  };
+
   const handleSaveGoal = (e: React.FormEvent) => {
     e.preventDefault();
     const targetVal = parseFloat(targetAmountInput);
     if (!isNaN(targetVal) && targetVal >= 0) {
-      updateGoal({
+      updateGoalForMonth(selectedYM, {
         targetIncreaseAmount: targetVal,
         note: noteInput,
       });
       setIsGoalModalOpen(false);
+      setToastMsg(`🎯 ${formatYearMonth(selectedYM)} 목표 증액 금액이 ${targetVal.toLocaleString()}원으로 설정되었습니다!`);
+      setTimeout(() => setToastMsg(null), 3000);
     }
   };
 
@@ -106,8 +196,25 @@ export const GoalTrackerView: React.FC = () => {
   };
 
   const incomeCategories = categories.filter(c => c.type === 'income');
-  const remainingToTarget = Math.max(goal.targetIncreaseAmount - currentMonthNetSaving, 0);
-  const isGoalAchieved = goal.targetIncreaseAmount > 0 && currentMonthNetSaving >= goal.targetIncreaseAmount;
+
+  // Month Context & Metrics
+  const isViewingCurrentMonth = selectedYM === currentYM;
+  const isViewingPastMonth = selectedYM < currentYM;
+
+  const targetAmount = activeMonthGoal.targetIncreaseAmount;
+  const actualNetSaving = activeMonthStats.netSaving;
+  const achievementRate = activeMonthStats.achievementRate;
+  const goalStatus = activeMonthStats.status;
+
+  const remainingToTarget = Math.max(targetAmount - actualNetSaving, 0);
+  const excessTarget = Math.max(actualNetSaving - targetAmount, 0);
+  const isGoalAchieved = goalStatus === 'achieved';
+
+  // 12-month goals list for the selected year
+  const yearlyGoals = useMemo(() => {
+    return getYearMonthlyTrends(selectedYear);
+  }, [selectedYear, getYearMonthlyTrends, goals, transactions]);
+
 
   return (
     <div className="space-y-6 pb-12">
@@ -120,60 +227,222 @@ export const GoalTrackerView: React.FC = () => {
         </div>
       )}
 
-      {/* Main Goal Hero Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-sky-900 p-6 sm:p-8 text-white shadow-xl">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center space-x-2">
+            <span>목표 자산 증액</span>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+              {formatYearMonth(selectedYM)} 현황
+            </span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">매달 목표를 세우고 실제 자산 순증액과 달성 여부를 연/월별로 점검합니다.</p>
+        </div>
+
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={() => setShowHistoryGrid(prev => !prev)}
+            className={`inline-flex items-center space-x-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${
+              showHistoryGrid
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <History className="h-3.5 w-3.5" />
+            <span>{showHistoryGrid ? '연간 달성 현황 접기' : '연간 12개월 달성 현황'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Year / Month Navigator Card */}
+      <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          
+          {/* Year Selector & Month Step Buttons */}
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 bg-slate-100 rounded-xl px-2.5 py-1 border border-slate-200 text-xs font-bold text-slate-800">
+              <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                className="bg-transparent font-bold focus:outline-none cursor-pointer pr-1"
+              >
+                {availableYears.map(y => (
+                  <option key={y} value={y}>{y}년</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handlePrevMonth}
+                title="이전 달"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleSetCurrentMonth}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                  isViewingCurrentMonth
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                이번 달 (현재)
+              </button>
+              <button
+                onClick={handleNextMonth}
+                title="다음 달"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Month Indicator & Context Label */}
+          <div className="flex items-center space-x-2 text-xs">
+            <span className={`font-bold px-2.5 py-1 rounded-xl border ${
+              isViewingCurrentMonth
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                : isViewingPastMonth
+                ? 'bg-slate-100 text-slate-700 border-slate-200'
+                : 'bg-sky-50 text-sky-700 border-sky-200'
+            }`}>
+              {isViewingCurrentMonth ? '📍 이번 달 진행 중' : isViewingPastMonth ? '📜 과거 월 결산 내역' : '🔮 미래 월 계획'}
+            </span>
+            <span className="text-slate-500 font-medium">
+              조회: <strong className="text-slate-900 font-bold">{formatYearMonth(selectedYM)}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* 1 ~ 12 Month Quick Filter Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+            const isThisMonth = selectedYear === currentYear && m === currentMonth;
+            const isSelected = selectedMonth === m;
+            const monthStat = yearlyGoals[m - 1];
+            const isAchieved = monthStat?.status === 'achieved';
+
+            return (
+              <button
+                key={m}
+                onClick={() => setSelectedMonth(m)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border relative flex items-center space-x-1 ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-200'
+                    : isThisMonth
+                    ? 'bg-indigo-50/80 text-indigo-700 border-indigo-300 font-extrabold'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span>{m}월</span>
+                {isAchieved && <span>🏆</span>}
+                {isThisMonth && !isAchieved && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Goal Achievement Hero Card */}
+      <div className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl transition-all ${
+        isGoalAchieved
+          ? 'bg-gradient-to-br from-emerald-950 via-teal-900 to-indigo-950'
+          : isViewingPastMonth && goalStatus === 'failed'
+          ? 'bg-gradient-to-br from-slate-900 via-rose-950 to-slate-900'
+          : 'bg-gradient-to-br from-indigo-900 via-indigo-800 to-sky-900'
+      }`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center space-x-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-100 backdrop-blur-md border border-white/10">
                 <Target className="h-3.5 w-3.5" />
-                <span>{goal.yearMonth} 목표 관리</span>
+                <span>{formatYearMonth(selectedYM)} 목표 관리</span>
               </span>
-              <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-bold text-emerald-300">
-                <DollarSign className="h-3.5 w-3.5" />
-                <span>총 예상 수입: {expectedMonthlyIncome > 0 ? `${expectedMonthlyIncome.toLocaleString()}원` : '미설정'}</span>
-              </span>
+
+              {/* Achievement Badge */}
+              {goalStatus === 'achieved' ? (
+                <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-400/20 border border-emerald-400/40 px-3 py-1 text-xs font-black text-emerald-300 animate-pulse">
+                  <Award className="h-3.5 w-3.5 text-amber-300" />
+                  <span>🏆 목표 달성 완료!</span>
+                </span>
+              ) : goalStatus === 'failed' ? (
+                <span className="inline-flex items-center space-x-1 rounded-full bg-rose-500/20 border border-rose-400/30 px-3 py-1 text-xs font-bold text-rose-300">
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>⚠️ 목표 미달성 (결산)</span>
+                </span>
+              ) : goalStatus === 'in_progress' ? (
+                <span className="inline-flex items-center space-x-1 rounded-full bg-amber-400/20 border border-amber-400/30 px-3 py-1 text-xs font-bold text-amber-300">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>⏳ 목표 달성 순항 중</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center space-x-1 rounded-full bg-slate-400/20 border border-slate-300/30 px-3 py-1 text-xs font-bold text-slate-300">
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>📝 목표 미설정</span>
+                </span>
+              )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              이번 달 자산 <span className="text-amber-300">+{goal.targetIncreaseAmount.toLocaleString()}원</span> 증액 도전!
-            </h1>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {formatYearMonth(selectedYM)} 자산{' '}
+              <span className="text-amber-300">
+                {targetAmount > 0 ? `+${targetAmount.toLocaleString()}원` : '0원'}
+              </span>{' '}
+              증액 {isGoalAchieved ? '달성 성공!' : '도전!'}
+            </h2>
             <p className="text-xs sm:text-sm text-indigo-100">
-              {goal.note || '지출을 아끼고 수입을 모아 이번 달 자산을 단단하게 불려나가세요.'}
+              {activeMonthGoal.note || (
+                targetAmount > 0
+                  ? '지출을 아끼고 저축을 모아 이번 달 자산 증액 목표를 성공적으로 완수하세요!'
+                  : '이 달의 목표 자산 증액 금액을 설정하고 저축 습관을 시작해 보세요.'
+              )}
             </p>
           </div>
 
           <button
             onClick={() => {
-              setTargetAmountInput(goal.targetIncreaseAmount.toString());
-              setNoteInput(goal.note || '');
+              setTargetAmountInput(activeMonthGoal.targetIncreaseAmount.toString());
+              setNoteInput(activeMonthGoal.note || '');
               setIsGoalModalOpen(true);
             }}
             className="inline-flex items-center justify-center space-x-2 rounded-2xl bg-white text-indigo-950 px-5 py-3 text-sm font-bold hover:bg-indigo-50 shadow-lg transition-all shrink-0"
           >
             <Edit3 className="h-4 w-4 text-indigo-600" />
-            <span>증액 목표 금액 수정</span>
+            <span>이 달의 증액 목표 수정</span>
           </button>
         </div>
 
         {/* Progress Bar Gauge */}
         <div className="mt-8 space-y-3">
           <div className="flex items-center justify-between text-xs sm:text-sm font-semibold">
-            <span className="text-indigo-100">
-              현재 자산 순증액: <strong className="text-emerald-300 text-base">{currentMonthNetSaving.toLocaleString()}원</strong>
+            <span className="text-indigo-100 flex items-center space-x-1.5">
+              <span>실제 자산 순증액:</span>
+              <strong className={`text-base ${actualNetSaving >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                {actualNetSaving >= 0 ? `+${actualNetSaving.toLocaleString()}` : actualNetSaving.toLocaleString()}원
+              </strong>
             </span>
-            <span className="text-amber-300 text-base font-extrabold">{monthlyGoalProgress}% 달성</span>
+            <span className="text-amber-300 text-base font-extrabold">
+              {targetAmount > 0 ? `${achievementRate}% 달성` : '목표 미설정'}
+            </span>
           </div>
 
           <div className="h-5 w-full rounded-full bg-indigo-950/60 p-1 border border-indigo-700/50">
             <div
               className={`h-full rounded-full transition-all duration-700 ${
                 isGoalAchieved
-                  ? 'bg-gradient-to-r from-emerald-400 to-teal-300 shadow-lg shadow-emerald-500/30'
+                  ? 'bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 shadow-lg shadow-emerald-500/30'
+                  : actualNetSaving < 0
+                  ? 'bg-rose-500'
                   : 'bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400'
               }`}
-              style={{ width: `${Math.min(monthlyGoalProgress, 100)}%` }}
+              style={{ width: `${Math.min(Math.max(achievementRate, 0), 100)}%` }}
             ></div>
           </div>
 
@@ -183,20 +452,197 @@ export const GoalTrackerView: React.FC = () => {
               {isGoalAchieved ? (
                 <strong className="text-emerald-300 flex items-center space-x-1">
                   <Award className="h-4 w-4" />
-                  <span>목표 달성 완료!</span>
+                  <span>목표보다 +{excessTarget.toLocaleString()}원 초과 달성! 👏</span>
                 </strong>
-              ) : goal.targetIncreaseAmount > 0 ? (
-                `목표까지 ${remainingToTarget.toLocaleString()}원 남아있음`
+              ) : targetAmount > 0 ? (
+                isViewingPastMonth ? (
+                  <span className="text-rose-300">목표 대비 -{remainingToTarget.toLocaleString()}원 부족으로 마감</span>
+                ) : (
+                  `목표까지 ${remainingToTarget.toLocaleString()}원 남음`
+                )
               ) : (
-                '목표 금액을 설정해 주세요'
+                '증액 목표 금액을 설정해 주세요'
               )}
             </span>
-            <span>목표: {goal.targetIncreaseAmount.toLocaleString()}원</span>
+            <span>목표: {targetAmount.toLocaleString()}원</span>
           </div>
         </div>
 
         <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
       </div>
+
+      {/* Selected Month Financial Overview KPI Strip (매달의 소비/수입/투자 현황) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        
+        {/* Month Income */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">{selectedMonth}월 수입 현황</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+              <ArrowUpCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 tracking-tight">
+              +{activeMonthStats.totalIncome.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">총 {activeMonthStats.incomeCount}건의 수입 내역</div>
+          </div>
+        </div>
+
+        {/* Month Expense (소비) */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">{selectedMonth}월 소비(지출) 현황</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+              <ArrowDownCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xl sm:text-2xl font-extrabold text-rose-600 tracking-tight">
+              -{activeMonthStats.totalExpense.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">총 {activeMonthStats.expenseCount}건의 소비 및 결제</div>
+          </div>
+        </div>
+
+        {/* Month Investment */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">{selectedMonth}월 투자 투입 현황</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-xl sm:text-2xl font-extrabold text-purple-600 tracking-tight">
+              {activeMonthStats.totalInvestment.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">총 {activeMonthStats.investmentCount}건의 투자 매수</div>
+          </div>
+        </div>
+
+        {/* Actual Net Increase vs Goal */}
+        <div className="rounded-3xl bg-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">{selectedMonth}월 자산 순증액</span>
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+              isGoalAchieved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+            }`}>
+              <PiggyBank className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <div className={`text-xl sm:text-2xl font-extrabold tracking-tight ${
+              actualNetSaving >= 0 ? 'text-indigo-600' : 'text-rose-600'
+            }`}>
+              {actualNetSaving >= 0 ? `+${actualNetSaving.toLocaleString()}` : actualNetSaving.toLocaleString()} <span className="text-xs font-normal text-slate-500">원</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              목표 대비: <strong className={actualNetSaving >= targetAmount ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                {targetAmount > 0
+                  ? (actualNetSaving >= targetAmount ? `+${excessTarget.toLocaleString()}원 초과 달성` : `-${remainingToTarget.toLocaleString()}원 부족`)
+                  : '목표 미설정'}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 12-Month Goal Achievement Calendar Matrix (연간 12개월 목표 달성 현황) */}
+      {showHistoryGrid && (
+        <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-indigo-600" />
+                <span>{selectedYear}년 1월 ~ 12월 매달 목표 달성 현황</span>
+              </h2>
+              <p className="text-xs text-slate-500">각 월별 카드를 클릭하면 해당 월로 이동하여 목표를 설정하거나 상세 내역을 확인할 수 있습니다.</p>
+            </div>
+            <div className="flex items-center space-x-3 text-xs text-slate-500">
+              <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-emerald-500"></span><span>달성 완료</span></span>
+              <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-amber-500"></span><span>진행 중</span></span>
+              <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-rose-500"></span><span>미달성</span></span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
+            {yearlyGoals.map((stat, idx) => {
+              const m = idx + 1;
+              const isSelected = selectedMonth === m;
+              const isCurrent = selectedYear === currentYear && m === currentMonth;
+              const target = stat.goal.targetIncreaseAmount;
+              const net = stat.netSaving;
+              const rate = stat.achievementRate;
+              const status = stat.status;
+
+              return (
+                <div
+                  key={stat.yearMonth}
+                  onClick={() => setSelectedMonth(m)}
+                  className={`rounded-2xl p-3.5 border transition-all cursor-pointer flex flex-col justify-between space-y-2 hover:shadow-md ${
+                    isSelected
+                      ? 'bg-indigo-50/80 border-indigo-400 ring-2 ring-indigo-200 shadow-xs'
+                      : isCurrent
+                      ? 'bg-amber-50/40 border-amber-200 hover:border-amber-300'
+                      : 'bg-slate-50/60 border-slate-200/80 hover:bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 flex items-center space-x-1">
+                      <span>{m}월</span>
+                      {isCurrent && (
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1 rounded">현재</span>
+                      )}
+                    </span>
+                    <span className="text-xs">
+                      {status === 'achieved' ? (
+                        <span className="text-emerald-600 font-bold">🏆 달성</span>
+                      ) : status === 'failed' ? (
+                        <span className="text-rose-500 font-bold">⚠️ 미달</span>
+                      ) : status === 'in_progress' ? (
+                        <span className="text-amber-600 font-bold">⏳ 진행</span>
+                      ) : (
+                        <span className="text-slate-400">미설정</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">목표: {target > 0 ? `${Math.round(target / 10000)}만` : '0원'}</div>
+                    <div className={`text-xs font-extrabold ${net >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                      순증: {net >= 0 ? `+${Math.round(net / 10000)}만` : `${Math.round(net / 10000)}만`}
+                    </div>
+                  </div>
+
+                  {target > 0 ? (
+                    <div className="space-y-1">
+                      <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            status === 'achieved'
+                              ? 'bg-emerald-500'
+                              : net < 0
+                              ? 'bg-rose-500'
+                              : 'bg-amber-500'
+                          }`}
+                          style={{ width: `${Math.min(Math.max(rate, 0), 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="text-[10px] text-right font-bold text-slate-500">{rate}%</div>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-400 py-1">목표 없음</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
 
       {/* Itemized Expected Income Section */}
       <div className="rounded-3xl bg-white p-6 border border-slate-200/80 shadow-xs space-y-4">
@@ -380,7 +826,7 @@ export const GoalTrackerView: React.FC = () => {
             </div>
             <div className="flex justify-between text-indigo-600">
               <span>차감: 목표 자산 증액분:</span>
-              <span className="font-semibold">-{goal.targetIncreaseAmount.toLocaleString()}원</span>
+              <span className="font-semibold">-{activeMonthGoal.targetIncreaseAmount.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-rose-600">
               <span>차감: 매월 고정지출 보존분:</span>
@@ -475,7 +921,9 @@ export const GoalTrackerView: React.FC = () => {
       {isGoalModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 border border-slate-200 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">이번 달 자산 증액 목표 수정</h3>
+            <h3 className="text-lg font-bold text-slate-900">
+              {formatYearMonth(selectedYM)} 자산 증액 목표 설정
+            </h3>
 
             <form onSubmit={handleSaveGoal} className="space-y-4">
               <div>
