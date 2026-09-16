@@ -158,7 +158,15 @@ export async function fetchUserDataFromSupabase(username: string): Promise<Supab
     return { success: true, data: null };
   } catch (e: any) {
     console.error('Supabase fetch exception:', e);
-    return { success: false, data: null, errorMsg: e?.message || 'DB 연결 네트워크 예외 발생' };
+    const msg = e?.message || '';
+    if (msg.includes('fetch failed') || msg.includes('ENOTFOUND')) {
+      return {
+        success: false,
+        data: null,
+        errorMsg: 'Supabase Project URL 호스트를 찾을 수 없습니다 (ENOTFOUND). Supabase 대시보드(Project Settings > API)에서 올바른 Project URL과 anon JWT 키를 확인해 주세요.',
+      };
+    }
+    return { success: false, data: null, errorMsg: msg || 'DB 연결 네트워크 예외 발생' };
   }
 }
 
@@ -194,7 +202,14 @@ export async function saveUserDataToSupabase(username: string, payload: Omit<Use
     return { success: true };
   } catch (e: any) {
     console.error('Supabase upsert exception:', e);
-    return { success: false, errorMsg: e?.message || 'DB 저장 예외 발생' };
+    const msg = e?.message || '';
+    if (msg.includes('fetch failed') || msg.includes('ENOTFOUND')) {
+      return {
+        success: false,
+        errorMsg: 'Supabase Project URL 호스트를 찾을 수 없습니다 (ENOTFOUND). 올바른 URL과 anon 키를 확인해 주세요.',
+      };
+    }
+    return { success: false, errorMsg: msg || 'DB 저장 예외 발생' };
   }
 }
 
