@@ -35,7 +35,6 @@ export const GoalTrackerView: React.FC = () => {
     updateGoalForMonth,
     getMonthStats,
     getYearMonthlyTrends,
-    currentMonthIncome,
     expectedMonthlyIncome,
     expectedIncomeItems,
     addExpectedIncomeItem,
@@ -43,14 +42,10 @@ export const GoalTrackerView: React.FC = () => {
     deleteExpectedIncomeItem,
     logExpectedIncomeToLedger,
     totalFixedExpenseAmount,
-    pureVariableExpenseSpent,
-    initialVariableBudget,
-    remainingVariableBudget,
     gulbiAdvice,
-    pastVariableExpenseSpent,
     todayVariableExpenseSpent,
-    remainingVariableBudgetBeforeToday,
     todayAvailableBudget,
+    todayDateStr,
     categories,
     transactions,
   } = useFinancial();
@@ -214,6 +209,64 @@ export const GoalTrackerView: React.FC = () => {
   const yearlyGoals = useMemo(() => {
     return getYearMonthlyTrends(selectedYear);
   }, [selectedYear, getYearMonthlyTrends, goals, transactions]);
+
+  // Dynamic budget breakdown for the selected month (selectedYM)
+  const selectedMonthBudgetBreakdown = useMemo(() => {
+    const viewIncome = activeMonthStats.totalIncome;
+    const baseline = viewIncome > 0 ? viewIncome : expectedMonthlyIncome;
+    const target = activeMonthGoal.targetIncreaseAmount;
+    const fixed = totalFixedExpenseAmount;
+    const initialBudget = Math.max(baseline - target - fixed, 0);
+
+    const isCurrentYM = selectedYM === currentYM;
+    const isPastYM = selectedYM < currentYM;
+
+    let pastSpent = 0;
+    let todaySpent = 0;
+
+    if (isCurrentYM) {
+      pastSpent = transactions
+        .filter(t => t.type === 'expense' && t.date.startsWith(selectedYM) && t.date < todayDateStr)
+        .reduce((sum, t) => sum + t.amount, 0);
+      todaySpent = transactions
+        .filter(t => t.type === 'expense' && t.date === todayDateStr)
+        .reduce((sum, t) => sum + t.amount, 0);
+    } else if (isPastYM) {
+      pastSpent = activeMonthStats.totalExpense;
+      todaySpent = 0;
+    } else {
+      pastSpent = 0;
+      todaySpent = 0;
+    }
+
+    const pureSpent = pastSpent + todaySpent;
+    const remBeforeToday = initialBudget - pastSpent;
+    const totalRemaining = initialBudget - pureSpent;
+    const todayAvailable = remBeforeToday - todaySpent;
+
+    return {
+      viewIncome,
+      baseline,
+      target,
+      fixed,
+      initialBudget,
+      pastSpent,
+      todaySpent,
+      pureSpent,
+      remBeforeToday,
+      totalRemaining,
+      todayAvailable,
+    };
+  }, [
+    selectedYM,
+    currentYM,
+    todayDateStr,
+    activeMonthStats,
+    activeMonthGoal,
+    expectedMonthlyIncome,
+    totalFixedExpenseAmount,
+    transactions,
+  ]);
 
 
   return (
@@ -822,27 +875,27 @@ export const GoalTrackerView: React.FC = () => {
             </div>
             <div className="flex justify-between text-emerald-600">
               <span>장부 수입 (실제 입금):</span>
-              <span className="font-semibold">+{currentMonthIncome.toLocaleString()}원</span>
+              <span className="font-semibold">+{selectedMonthBudgetBreakdown.viewIncome.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-indigo-600">
               <span>차감: 목표 자산 증액분:</span>
-              <span className="font-semibold">-{activeMonthGoal.targetIncreaseAmount.toLocaleString()}원</span>
+              <span className="font-semibold">-{selectedMonthBudgetBreakdown.target.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-rose-600">
               <span>차감: 매월 고정지출 보존분:</span>
-              <span className="font-semibold">-{totalFixedExpenseAmount.toLocaleString()}원</span>
+              <span className="font-semibold">-{selectedMonthBudgetBreakdown.fixed.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-800">
               <span>= 초기 월 변동지출 예산:</span>
-              <span className="text-slate-900 font-bold">{initialVariableBudget.toLocaleString()}원</span>
+              <span className="text-slate-900 font-bold">{selectedMonthBudgetBreakdown.initialBudget.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-slate-500">
               <span>차감: 어제까지 누적 변동지출:</span>
-              <span className="font-semibold text-slate-700">-{pastVariableExpenseSpent.toLocaleString()}원</span>
+              <span className="font-semibold text-slate-700">-{selectedMonthBudgetBreakdown.pastSpent.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between font-semibold text-slate-800">
               <span>= 오늘 아침 시작 기준 가용 예산:</span>
-              <span className="text-indigo-700 font-bold">{remainingVariableBudgetBeforeToday.toLocaleString()}원</span>
+              <span className="text-indigo-700 font-bold">{selectedMonthBudgetBreakdown.remBeforeToday.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-amber-700 font-semibold">
               <span>➔ 오늘 하루 평균 권장 예산 ({gulbiAdvice.currentDaysLeft}일 분할):</span>
@@ -850,17 +903,17 @@ export const GoalTrackerView: React.FC = () => {
             </div>
             <div className="flex justify-between text-rose-600">
               <span>차감: 오늘 실제 지출한 금액:</span>
-              <span className="font-semibold">-{todayVariableExpenseSpent.toLocaleString()}원</span>
+              <span className="font-semibold">-{selectedMonthBudgetBreakdown.todaySpent.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold text-slate-900 text-sm">
               <span>= 오늘 남은 당일 가용 잔여 예산:</span>
-              <span className={todayAvailableBudget >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                {todayAvailableBudget >= 0 ? `+${todayAvailableBudget.toLocaleString()}원` : `${todayAvailableBudget.toLocaleString()}원`}
+              <span className={selectedMonthBudgetBreakdown.todayAvailable >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                {selectedMonthBudgetBreakdown.todayAvailable >= 0 ? `+${selectedMonthBudgetBreakdown.todayAvailable.toLocaleString()}원` : `${selectedMonthBudgetBreakdown.todayAvailable.toLocaleString()}원`}
               </span>
             </div>
             <div className="flex justify-between border-t border-slate-200/80 pt-2 text-[11px] text-slate-500">
-              <span>이번 달 누적 변동지출 총액: <strong className="text-slate-700">{pureVariableExpenseSpent.toLocaleString()}원</strong></span>
-              <span>월말까지 총 남은 가용 예산: <strong className={remainingVariableBudget >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{remainingVariableBudget.toLocaleString()}원</strong></span>
+              <span>선택 월 누적 변동지출 총액: <strong className="text-slate-700">{selectedMonthBudgetBreakdown.pureSpent.toLocaleString()}원</strong></span>
+              <span>월말까지 총 남은 가용 예산: <strong className={selectedMonthBudgetBreakdown.totalRemaining >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{selectedMonthBudgetBreakdown.totalRemaining.toLocaleString()}원</strong></span>
             </div>
           </div>
         </div>
