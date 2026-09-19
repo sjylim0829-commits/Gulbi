@@ -26,7 +26,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import type { ExpectedIncomeItem } from '../../types/financial';
-import { formatYearMonth, getLocalYearMonthString } from '../../utils/dateUtils';
+import { formatYearMonth, getLocalYearMonthString, getDaysInMonth } from '../../utils/dateUtils';
 
 export const GoalTrackerView: React.FC = () => {
   const {
@@ -43,8 +43,6 @@ export const GoalTrackerView: React.FC = () => {
     logExpectedIncomeToLedger,
     totalFixedExpenseAmount,
     gulbiAdvice,
-    todayVariableExpenseSpent,
-    todayAvailableBudget,
     todayDateStr,
     categories,
     transactions,
@@ -244,6 +242,12 @@ export const GoalTrackerView: React.FC = () => {
     const totalRemaining = initialBudget - pureSpent;
     const todayAvailable = remBeforeToday - todaySpent;
 
+    const todayObj = new Date();
+    const currentDay = todayObj.getDate();
+    const daysInMonth = getDaysInMonth(todayObj.getFullYear(), todayObj.getMonth() + 1);
+    const currentDaysLeft = isCurrentYM ? Math.max(daysInMonth - currentDay + 1, 1) : 1;
+    const dailyTargetBudget = Math.floor(Math.max(remBeforeToday, 0) / currentDaysLeft);
+
     return {
       viewIncome,
       baseline,
@@ -256,6 +260,8 @@ export const GoalTrackerView: React.FC = () => {
       remBeforeToday,
       totalRemaining,
       todayAvailable,
+      dailyTargetBudget,
+      currentDaysLeft,
     };
   }, [
     selectedYM,
@@ -818,14 +824,14 @@ export const GoalTrackerView: React.FC = () => {
               </div>
             </div>
             <span className="rounded-xl bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 border border-amber-200">
-              남은 {gulbiAdvice.currentDaysLeft}일
+              남은 {selectedMonthBudgetBreakdown.currentDaysLeft}일
             </span>
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200/80 text-center space-y-1">
             <span className="text-xs font-medium text-slate-500">오늘부터 하루 평균 안전 가용 지출</span>
             <div className="text-3xl font-extrabold text-amber-600 tracking-tight">
-              {gulbiAdvice.dailyTargetBudget.toLocaleString()} <span className="text-base font-normal text-slate-600">원 / 일</span>
+              {selectedMonthBudgetBreakdown.dailyTargetBudget.toLocaleString()} <span className="text-base font-normal text-slate-600">원 / 일</span>
             </div>
           </div>
 
@@ -837,34 +843,34 @@ export const GoalTrackerView: React.FC = () => {
                 <span>오늘 실시간 당일 가용 잔여 예산</span>
               </span>
               <span className="text-[11px] text-amber-800 font-bold bg-amber-200/60 px-2 py-0.5 rounded-md">
-                오늘 지출: {todayVariableExpenseSpent.toLocaleString()}원
+                오늘 지출: {selectedMonthBudgetBreakdown.todaySpent.toLocaleString()}원
               </span>
             </div>
 
             <div className="flex items-baseline justify-between pt-1">
               <div className="text-2xl font-extrabold tracking-tight">
-                {todayAvailableBudget >= 0 ? (
+                {selectedMonthBudgetBreakdown.todayAvailable >= 0 ? (
                   <span className="text-emerald-600">
-                    +{todayAvailableBudget.toLocaleString()} <span className="text-sm font-normal text-slate-600">원 남음</span>
+                    +{selectedMonthBudgetBreakdown.todayAvailable.toLocaleString()} <span className="text-sm font-normal text-slate-600">원 남음</span>
                   </span>
                 ) : (
                   <span className="text-rose-600">
-                    -{Math.abs(todayAvailableBudget).toLocaleString()} <span className="text-sm font-normal text-slate-600">원 초과!</span>
+                    -{Math.abs(selectedMonthBudgetBreakdown.todayAvailable).toLocaleString()} <span className="text-sm font-normal text-slate-600">원 초과!</span>
                   </span>
                 )}
               </div>
               <span
                 className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
-                  todayAvailableBudget >= 0
+                  selectedMonthBudgetBreakdown.todayAvailable >= 0
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                     : 'bg-rose-100 text-rose-800 border-rose-200 animate-pulse'
                 }`}
               >
-                {todayAvailableBudget >= 0 ? '오늘 소비 안전 🟢' : '오늘 예산 초과 🔴'}
+                {selectedMonthBudgetBreakdown.todayAvailable >= 0 ? '오늘 소비 안전 🟢' : '오늘 예산 초과 🔴'}
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              일일 권장 지출({gulbiAdvice.dailyTargetBudget.toLocaleString()}원) - 오늘 실제 지출({todayVariableExpenseSpent.toLocaleString()}원) = 오늘 추가 사용 가능 금액
+              오늘 가용 시작 예산({selectedMonthBudgetBreakdown.remBeforeToday.toLocaleString()}원) - 오늘 실제 지출({selectedMonthBudgetBreakdown.todaySpent.toLocaleString()}원) = 오늘 추가 사용 가능 금액
             </p>
           </div>
 
@@ -898,8 +904,8 @@ export const GoalTrackerView: React.FC = () => {
               <span className="text-indigo-700 font-bold">{selectedMonthBudgetBreakdown.remBeforeToday.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-amber-700 font-semibold">
-              <span>➔ 오늘 하루 평균 권장 예산 ({gulbiAdvice.currentDaysLeft}일 분할):</span>
-              <span className="font-bold">{gulbiAdvice.dailyTargetBudget.toLocaleString()}원 / 일</span>
+              <span>➔ 오늘 하루 평균 권장 예산 ({selectedMonthBudgetBreakdown.currentDaysLeft}일 분할):</span>
+              <span className="font-bold">{selectedMonthBudgetBreakdown.dailyTargetBudget.toLocaleString()}원 / 일</span>
             </div>
             <div className="flex justify-between text-rose-600">
               <span>차감: 오늘 실제 지출한 금액:</span>
